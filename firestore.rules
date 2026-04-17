@@ -1,0 +1,68 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    // USERS
+    // Anyone signed in can read a profile (needed to browse speakers).
+    // Only the owner can create/update their own profile.
+    // No one can delete profiles from the client.
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if false;
+    }
+
+    // BOOKINGS
+    // A booking is readable and writable only by the learner or speaker involved.
+    match /bookings/{bookingId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == resource.data.learnerId ||
+        request.auth.uid == resource.data.speakerId
+      );
+      allow create: if isSignedIn() && request.auth.uid == request.resource.data.learnerId;
+      allow update: if isSignedIn() && (
+        request.auth.uid == resource.data.learnerId ||
+        request.auth.uid == resource.data.speakerId
+      );
+      allow delete: if false;
+    }
+
+    // SESSIONS (video call records)
+    match /sessions/{sessionId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == resource.data.learnerId ||
+        request.auth.uid == resource.data.speakerId
+      );
+      allow create, update: if isSignedIn() && (
+        request.auth.uid == request.resource.data.learnerId ||
+        request.auth.uid == request.resource.data.speakerId
+      );
+      allow delete: if false;
+    }
+
+    // REVIEWS
+    // Reviews are publicly readable (to show speaker ratings).
+    // Only the learner who owned the session can create a review.
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.auth.uid == request.resource.data.learnerId;
+      allow update: if isSignedIn() && request.auth.uid == resource.data.learnerId;
+      allow delete: if false;
+    }
+
+    // Default deny — anything not listed above is blocked.
+  }
+}

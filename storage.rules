@@ -1,0 +1,18 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Profile photos — everyone can view, only the owner can upload/replace.
+    // Max file size: 5 MB. Must be an image.
+    match /profile-photos/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // Default deny — anything else is blocked.
+  }
+}
