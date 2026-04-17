@@ -42,6 +42,7 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const devBypass = isDevAuthBypassEnabled();
+  const authAvailable = auth !== null;
 
   const [user, setUser] = useState<User | null>(() =>
     devBypass ? getDevBypassUser() : null
@@ -53,7 +54,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (devBypass) return;
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    if (!authAvailable) {
+      setLoading(false);
+      return;
+    }
+    const authInstance = auth;
+    if (!authInstance) {
+      setLoading(false);
+      return;
+    }
+    const unsubscribe = onAuthStateChanged(authInstance, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
         const docRef = doc(db, "users", firebaseUser.uid);
@@ -67,14 +77,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
     return unsubscribe;
-  }, [devBypass]);
+  }, [devBypass, authAvailable]);
 
   const login = async (email: string, password: string) => {
     if (devBypass) {
       toast("Dev auth bypass is on — Firebase sign-in is skipped.", { icon: "🔧" });
       return;
     }
-    const cred = await signInWithEmailAndPassword(auth, email, password);
+    if (!authAvailable) {
+      throw new Error("Firebase Auth is not configured. Set NEXT_PUBLIC_FIREBASE_API_KEY.");
+    }
+    const authInstance = auth;
+    if (!authInstance) {
+      throw new Error("Firebase Auth is not configured. Set NEXT_PUBLIC_FIREBASE_API_KEY.");
+    }
+    const cred = await signInWithEmailAndPassword(authInstance, email, password);
     const docRef = doc(db, "users", cred.user.uid);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
@@ -93,7 +110,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       toast("Dev auth bypass is on — Firebase sign-up is skipped.", { icon: "🔧" });
       return;
     }
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
+    if (!authAvailable) {
+      throw new Error("Firebase Auth is not configured. Set NEXT_PUBLIC_FIREBASE_API_KEY.");
+    }
+    const authInstance = auth;
+    if (!authInstance) {
+      throw new Error("Firebase Auth is not configured. Set NEXT_PUBLIC_FIREBASE_API_KEY.");
+    }
+    const cred = await createUserWithEmailAndPassword(authInstance, email, password);
     await updateProfile(cred.user, { displayName });
 
     const profile: UserProfile = {
@@ -118,8 +142,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       toast("Dev auth bypass is on — Firebase sign-in is skipped.", { icon: "🔧" });
       return;
     }
+    if (!authAvailable) {
+      throw new Error("Firebase Auth is not configured. Set NEXT_PUBLIC_FIREBASE_API_KEY.");
+    }
+    const authInstance = auth;
+    if (!authInstance) {
+      throw new Error("Firebase Auth is not configured. Set NEXT_PUBLIC_FIREBASE_API_KEY.");
+    }
     const provider = new GoogleAuthProvider();
-    const cred = await signInWithPopup(auth, provider);
+    const cred = await signInWithPopup(authInstance, provider);
 
     // Check if this user already has a profile in Firestore
     const docRef = doc(db, "users", cred.user.uid);
@@ -153,7 +184,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       toast("Sign out is disabled while dev auth bypass is enabled.", { icon: "🔧" });
       return;
     }
-    await signOut(auth);
+    if (!authAvailable) {
+      setUserProfile(null);
+      return;
+    }
+    const authInstance = auth;
+    if (!authInstance) {
+      setUserProfile(null);
+      return;
+    }
+    await signOut(authInstance);
     setUserProfile(null);
   };
 

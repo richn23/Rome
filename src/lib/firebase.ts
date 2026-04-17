@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, type Auth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -15,7 +15,9 @@ const firebaseConfig = {
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
-export const auth = getAuth(app);
+// Avoid failing static prerender when Firebase API key is not set in build env.
+// Auth is only required for interactive client flows.
+export const auth: Auth | null = firebaseConfig.apiKey ? getAuth(app) : null;
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export default app;
