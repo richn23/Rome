@@ -22,6 +22,11 @@ import {
 import { UserProfile, UserRole, LevelCode } from "@/types";
 import toast from "react-hot-toast";
 
+interface SignupExtras {
+  nativeLanguage?: string;
+  learningLanguage?: string;
+}
+
 interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
@@ -32,7 +37,8 @@ interface AuthContextType {
     password: string,
     displayName: string,
     role: UserRole,
-    level?: LevelCode
+    level?: LevelCode,
+    extras?: SignupExtras
   ) => Promise<void>;
   loginWithGoogle: (role?: UserRole, level?: LevelCode) => Promise<void>;
   logout: () => Promise<void>;
@@ -104,7 +110,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     displayName: string,
     role: UserRole,
-    level?: LevelCode
+    level?: LevelCode,
+    extras?: SignupExtras
   ) => {
     if (devBypass) {
       toast("Dev auth bypass is on — Firebase sign-up is skipped.", { icon: "🔧" });
@@ -128,6 +135,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       photoURL: "",
       createdAt: serverTimestamp() as any,
       ...(role === "learner" && level ? { level } : {}),
+      ...(extras?.nativeLanguage ? { nativeLanguage: extras.nativeLanguage } : {}),
+      ...(extras?.learningLanguage ? { learningLanguage: extras.learningLanguage } : {}),
       ...(role === "speaker"
         ? { status: "offline" as const, hourlyRate: 15, rating: 0, totalSessions: 0 }
         : {}),

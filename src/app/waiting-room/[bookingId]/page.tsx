@@ -54,12 +54,12 @@ export default function WaitingRoomPage({
   if (rejected) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-teal-50 px-4">
-        <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-lg">
+        <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 p-8 text-center shadow-lg">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-2xl">
             ✕
           </div>
-          <h2 className="mb-2 text-xl font-bold text-gray-900">Session Declined</h2>
-          <p className="mb-6 text-gray-500">
+          <h2 className="mb-2 text-xl font-bold text-gray-900 dark:text-slate-100">Session Declined</h2>
+          <p className="mb-6 text-gray-500 dark:text-slate-400">
             {speaker?.displayName ?? "The speaker"} is not available right now.
           </p>
           <button
@@ -75,14 +75,14 @@ export default function WaitingRoomPage({
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-teal-50 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-lg">
+      <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 p-8 text-center shadow-lg">
         <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-teal-100 text-3xl font-bold text-teal-700">
           {speaker?.displayName?.charAt(0)?.toUpperCase() ?? "?"}
         </div>
-        <h2 className="mb-2 text-xl font-bold text-gray-900">
+        <h2 className="mb-2 text-xl font-bold text-gray-900 dark:text-slate-100">
           Waiting for {speaker?.displayName ?? "speaker"}...
         </h2>
-        <p className="mb-8 text-gray-500">
+        <p className="mb-8 text-gray-500 dark:text-slate-400">
           Hang tight! {speaker?.displayName ?? "Your speaker"} will admit you shortly.
         </p>
         <div className="mb-8 flex justify-center">
@@ -94,7 +94,7 @@ export default function WaitingRoomPage({
         </div>
         <button
           onClick={handleCancel}
-          className="w-full rounded-lg border border-gray-300 px-4 py-3 font-medium text-gray-600 transition hover:bg-gray-50"
+          className="w-full rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-3 font-medium text-gray-600 dark:text-slate-300 transition hover:bg-gray-50 dark:hover:bg-slate-800"
         >
           Cancel
         </button>

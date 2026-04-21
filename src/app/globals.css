@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Enable class-based dark mode in Tailwind v4 */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #f8fffe;
   --foreground: #1a2e35;
@@ -13,6 +16,11 @@
   --teal-700: #0f766e;
   --teal-800: #115e59;
   --teal-900: #134e4a;
+}
+
+.dark {
+  --background: #0b1220;
+  --foreground: #e2e8f0;
 }
 
 @theme inline {

@@ -41,14 +41,14 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-teal-50 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
+      <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 p-8 shadow-lg">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-teal-700">SpeakSpace</h1>
-          <p className="mt-2 text-gray-500">Sign in to your account</p>
+          <p className="mt-2 text-gray-500 dark:text-slate-400">Sign in to your account</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-slate-200">
               Email
             </label>
             <input
@@ -57,12 +57,12 @@ export default function LoginPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none"
+              className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-3 text-gray-900 dark:text-slate-100 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none"
               placeholder="you@example.com"
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-slate-200">
               Password
             </label>
             <input
@@ -71,7 +71,7 @@ export default function LoginPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none"
+              className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-3 text-gray-900 dark:text-slate-100 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none"
               placeholder="Your password"
             />
           </div>
@@ -86,7 +86,7 @@ export default function LoginPage() {
 
         <div className="my-6 flex items-center gap-3">
           <div className="h-px flex-1 bg-gray-200" />
-          <span className="text-xs uppercase tracking-wide text-gray-400">or</span>
+          <span className="text-xs uppercase tracking-wide text-gray-400 dark:text-slate-500">or</span>
           <div className="h-px flex-1 bg-gray-200" />
         </div>
 
@@ -94,7 +94,7 @@ export default function LoginPage() {
           type="button"
           onClick={handleGoogle}
           disabled={googleSubmitting}
-          className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 font-medium text-gray-700 dark:text-slate-200 transition hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50"
         >
           <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -105,7 +105,7 @@ export default function LoginPage() {
           {googleSubmitting ? "Signing in..." : "Continue with Google"}
         </button>
 
-        <p className="mt-6 text-center text-sm text-gray-500">
+        <p className="mt-6 text-center text-sm text-gray-500 dark:text-slate-400">
           Don&apos;t have an account?{" "}
           <Link href="/signup" className="font-medium text-teal-600 hover:text-teal-700">
             Sign up

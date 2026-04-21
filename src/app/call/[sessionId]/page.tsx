@@ -18,7 +18,7 @@ import {
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { Session, ChatMessage, UserProfile, Topic, LEVELS, LevelCode } from "@/types";
+import { Session, ChatMessage, UserProfile, Topic, LevelSignalType, LEVELS, LevelCode } from "@/types";
 import toast from "react-hot-toast";
 
 export default function CallRoomPage({
@@ -39,6 +39,8 @@ export default function CallRoomPage({
   const [topic, setTopic] = useState<Topic | null>(null);
   const [showRating, setShowRating] = useState(false);
   const [ratingScore, setRatingScore] = useState(0);
+  const [showLevelPrompt, setShowLevelPrompt] = useState(false);
+  const [levelSignalSubmitting, setLevelSignalSubmitting] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const isSpeaker = userProfile?.role === "speaker";
 
@@ -52,7 +54,8 @@ export default function CallRoomPage({
         if (userProfile?.role === "learner") {
           setShowRating(true);
         } else {
-          router.push("/dashboard/speaker");
+          // Speaker: show level signal prompt before redirecting
+          setShowLevelPrompt(true);
         }
       }
     });
@@ -168,6 +171,91 @@ export default function CallRoomPage({
     toast.success("Thanks for your feedback!");
     router.push("/dashboard/learner");
   };
+
+  /* Speaker submits a level signal for each learner in the session */
+  const submitLevelSignal = async (signalType: LevelSignalType) => {
+    if (!user || !session) return;
+    setLevelSignalSubmitting(true);
+    try {
+      await Promise.all(
+        learnerProfiles.map(async (lp) => {
+          if (!lp.level) return; // skip learners without a level set
+          await addDoc(collection(db, "levelSignals"), {
+            sessionId,
+            speakerId: user.uid,
+            learnerId: lp.uid,
+            signalType,
+            atLevel: lp.level,
+            createdAt: serverTimestamp(),
+          });
+        })
+      );
+      toast.success("Thanks — feedback sent");
+    } catch (err: any) {
+      toast.error(err.message || "Could not save feedback");
+    } finally {
+      setLevelSignalSubmitting(false);
+      router.push("/dashboard/speaker");
+    }
+  };
+
+  /* Speaker skip level signal (still go to dashboard) */
+  const skipLevelSignal = () => {
+    router.push("/dashboard/speaker");
+  };
+
+  // Speaker level signal overlay
+  if (showLevelPrompt) {
+    const firstLearner = learnerProfiles[0];
+    const learnerName = firstLearner?.displayName ?? "this learner";
+    const currentLevel = firstLearner?.level ? LEVELS[firstLearner.level as LevelCode] : null;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-teal-50 px-4">
+        <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
+          <h2 className="mb-1 text-xl font-bold text-gray-900">Nice session!</h2>
+          <p className="mb-6 text-sm text-gray-500">
+            Quick feedback on <strong>{learnerName}</strong>
+            {currentLevel && ` (${currentLevel})`}
+            . This helps them move at the right pace.
+          </p>
+          <p className="mb-3 text-sm font-medium text-gray-700">How was their level?</p>
+          <div className="space-y-2">
+            <button
+              disabled={levelSignalSubmitting}
+              onClick={() => submitLevelSignal("too_easy")}
+              className="w-full rounded-lg border border-teal-200 bg-teal-50 px-4 py-3 text-left text-sm font-medium text-teal-800 transition hover:bg-teal-100 disabled:opacity-50"
+            >
+              <span className="block font-semibold">Too easy</span>
+              <span className="block text-xs text-teal-700">They could handle harder material</span>
+            </button>
+            <button
+              disabled={levelSignalSubmitting}
+              onClick={() => submitLevelSignal("just_right")}
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-medium text-slate-800 transition hover:bg-slate-100 disabled:opacity-50"
+            >
+              <span className="block font-semibold">Just right</span>
+              <span className="block text-xs text-slate-600">Good fit for their current level</span>
+            </button>
+            <button
+              disabled={levelSignalSubmitting}
+              onClick={() => submitLevelSignal("too_hard")}
+              className="w-full rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm font-medium text-amber-900 transition hover:bg-amber-100 disabled:opacity-50"
+            >
+              <span className="block font-semibold">Too hard</span>
+              <span className="block text-xs text-amber-800">They&apos;d do better at an easier level</span>
+            </button>
+          </div>
+          <button
+            onClick={skipLevelSignal}
+            disabled={levelSignalSubmitting}
+            className="mt-3 w-full text-sm text-gray-500 hover:text-gray-700"
+          >
+            Skip
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Rating overlay
   if (showRating) {

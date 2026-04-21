@@ -7,12 +7,32 @@ import { useAuth } from "@/contexts/AuthContext";
 import { UserRole, LevelCode, LEVELS } from "@/types";
 import toast from "react-hot-toast";
 
+const LANGUAGES = [
+  "English",
+  "Spanish",
+  "French",
+  "German",
+  "Italian",
+  "Portuguese",
+  "Japanese",
+  "Chinese (Mandarin)",
+  "Korean",
+  "Arabic",
+  "Russian",
+  "Dutch",
+  "Swedish",
+  "Turkish",
+  "Other",
+];
+
 export default function SignupPage() {
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("learner");
   const [level, setLevel] = useState<LevelCode>("1a");
+  const [nativeLanguage, setNativeLanguage] = useState("");
+  const [learningLanguage, setLearningLanguage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
   const { signup, loginWithGoogle } = useAuth();
@@ -22,7 +42,14 @@ export default function SignupPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await signup(email, password, displayName, role, role === "learner" ? level : undefined);
+      await signup(
+        email,
+        password,
+        displayName,
+        role,
+        role === "learner" ? level : undefined,
+        { nativeLanguage, learningLanguage: role === "learner" ? learningLanguage : undefined }
+      );
       router.push("/");
     } catch (err: any) {
       toast.error(err.message || "Signup failed");
@@ -45,14 +72,14 @@ export default function SignupPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-teal-50 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
+      <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 p-8 shadow-lg">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-teal-700">SpeakSpace</h1>
-          <p className="mt-2 text-gray-500">Create your account</p>
+          <p className="mt-2 text-gray-500 dark:text-slate-400">Create your account</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label htmlFor="displayName" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 dark:text-slate-200">
               Display Name
             </label>
             <input
@@ -61,12 +88,12 @@ export default function SignupPage() {
               required
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none"
+              className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-3 text-gray-900 dark:text-slate-100 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none"
               placeholder="Your name"
             />
           </div>
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-slate-200">
               Email
             </label>
             <input
@@ -75,12 +102,12 @@ export default function SignupPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none"
+              className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-3 text-gray-900 dark:text-slate-100 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none"
               placeholder="you@example.com"
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-slate-200">
               Password
             </label>
             <input
@@ -90,43 +117,77 @@ export default function SignupPage() {
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none"
+              className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-3 text-gray-900 dark:text-slate-100 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none"
               placeholder="At least 6 characters"
             />
           </div>
           <div>
-            <label htmlFor="role" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="role" className="block text-sm font-medium text-gray-700 dark:text-slate-200">
               I am a...
             </label>
             <select
               id="role"
               value={role}
               onChange={(e) => setRole(e.target.value as UserRole)}
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none"
+              className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-3 text-gray-900 dark:text-slate-100 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none"
             >
               <option value="learner">Learner</option>
               <option value="speaker">Native Speaker</option>
             </select>
           </div>
           {role === "learner" && (
-            <div>
-              <label htmlFor="level" className="block text-sm font-medium text-gray-700">
-                Your speaking level
-              </label>
-              <select
-                id="level"
-                value={level}
-                onChange={(e) => setLevel(e.target.value as LevelCode)}
-                className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none"
-              >
-                {Object.entries(LEVELS).map(([code, name]) => (
-                  <option key={code} value={code}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <>
+              <div>
+                <label htmlFor="level" className="block text-sm font-medium text-gray-700 dark:text-slate-200">
+                  Your speaking level
+                </label>
+                <select
+                  id="level"
+                  value={level}
+                  onChange={(e) => setLevel(e.target.value as LevelCode)}
+                  className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-3 text-gray-900 dark:text-slate-100 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none"
+                >
+                  {Object.entries(LEVELS).map(([code, name]) => (
+                    <option key={code} value={code}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="learningLanguage" className="block text-sm font-medium text-gray-700 dark:text-slate-200">
+                  I want to learn
+                </label>
+                <select
+                  id="learningLanguage"
+                  value={learningLanguage}
+                  onChange={(e) => setLearningLanguage(e.target.value)}
+                  className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-3 text-gray-900 dark:text-slate-100 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none"
+                >
+                  <option value="">Select a language...</option>
+                  {LANGUAGES.map((l) => (
+                    <option key={l} value={l}>{l}</option>
+                  ))}
+                </select>
+              </div>
+            </>
           )}
+          <div>
+            <label htmlFor="nativeLanguage" className="block text-sm font-medium text-gray-700 dark:text-slate-200">
+              {role === "speaker" ? "I speak (native)" : "My native language"}
+            </label>
+            <select
+              id="nativeLanguage"
+              value={nativeLanguage}
+              onChange={(e) => setNativeLanguage(e.target.value)}
+              className="mt-1 block w-full rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-3 text-gray-900 dark:text-slate-100 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none"
+            >
+              <option value="">Select a language...</option>
+              {LANGUAGES.map((l) => (
+                <option key={l} value={l}>{l}</option>
+              ))}
+            </select>
+          </div>
           <button
             type="submit"
             disabled={submitting}
@@ -138,7 +199,7 @@ export default function SignupPage() {
 
         <div className="my-6 flex items-center gap-3">
           <div className="h-px flex-1 bg-gray-200" />
-          <span className="text-xs uppercase tracking-wide text-gray-400">or</span>
+          <span className="text-xs uppercase tracking-wide text-gray-400 dark:text-slate-500">or</span>
           <div className="h-px flex-1 bg-gray-200" />
         </div>
 
@@ -146,7 +207,7 @@ export default function SignupPage() {
           type="button"
           onClick={handleGoogle}
           disabled={googleSubmitting}
-          className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 font-medium text-gray-700 dark:text-slate-200 transition hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50"
         >
           <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -157,7 +218,7 @@ export default function SignupPage() {
           {googleSubmitting ? "Signing in..." : "Continue with Google"}
         </button>
 
-        <p className="mt-6 text-center text-sm text-gray-500">
+        <p className="mt-6 text-center text-sm text-gray-500 dark:text-slate-400">
           Already have an account?{" "}
           <Link href="/login" className="font-medium text-teal-600 hover:text-teal-700">
             Sign in

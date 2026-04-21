@@ -88,16 +88,16 @@ function AdminDashboardContent() {
 
   return (
     <div className="mx-auto max-w-6xl">
-      <h2 className="mb-6 text-2xl font-bold text-gray-900">Admin Dashboard</h2>
+      <h2 className="mb-6 text-2xl font-bold text-gray-900 dark:text-slate-100">Admin Dashboard</h2>
 
       {/* Tabs */}
-      <div className="mb-6 flex gap-1 rounded-lg bg-gray-100 p-1">
+      <div className="mb-6 flex gap-1 rounded-lg bg-gray-100 dark:bg-slate-800 p-1">
         {(["users", "topics", "sessions"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`flex-1 rounded-md px-4 py-2 text-sm font-medium capitalize transition ${
-              tab === t ? "bg-white text-teal-700 shadow-sm" : "text-gray-500 hover:text-gray-700"
+              tab === t ? "bg-white dark:bg-slate-900 text-teal-700 dark:text-teal-300 shadow-sm" : "text-gray-500 dark:text-slate-400 hover:text-gray-700"
             }`}
           >
             {t}
@@ -113,33 +113,33 @@ function AdminDashboardContent() {
             placeholder="Search users..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="mb-4 w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none"
+            className="mb-4 w-full rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-3 text-gray-900 dark:text-slate-100 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none"
           />
-          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+          <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900">
             <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-slate-950">
                 <tr>
-                  <th className="px-4 py-3 font-medium text-gray-600">Name</th>
-                  <th className="px-4 py-3 font-medium text-gray-600">Email</th>
-                  <th className="px-4 py-3 font-medium text-gray-600">Role</th>
-                  <th className="px-4 py-3 font-medium text-gray-600">Level</th>
-                  <th className="px-4 py-3 font-medium text-gray-600">Status</th>
+                  <th className="px-4 py-3 font-medium text-gray-600 dark:text-slate-300">Name</th>
+                  <th className="px-4 py-3 font-medium text-gray-600 dark:text-slate-300">Email</th>
+                  <th className="px-4 py-3 font-medium text-gray-600 dark:text-slate-300">Role</th>
+                  <th className="px-4 py-3 font-medium text-gray-600 dark:text-slate-300">Level</th>
+                  <th className="px-4 py-3 font-medium text-gray-600 dark:text-slate-300">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredUsers.map((u) => (
                   <tr key={u.uid}>
-                    <td className="px-4 py-3 font-medium text-gray-900">{u.displayName}</td>
-                    <td className="px-4 py-3 text-gray-500">{u.email}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-slate-100">{u.displayName}</td>
+                    <td className="px-4 py-3 text-gray-500 dark:text-slate-400">{u.email}</td>
                     <td className="px-4 py-3">
-                      <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-700 capitalize">
+                      <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-700 dark:text-teal-300 capitalize">
                         {u.role}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-500">
+                    <td className="px-4 py-3 text-gray-500 dark:text-slate-400">
                       {u.level ? LEVELS[u.level as LevelCode] : "—"}
                     </td>
-                    <td className="px-4 py-3 text-gray-500 capitalize">{u.status ?? "—"}</td>
+                    <td className="px-4 py-3 text-gray-500 dark:text-slate-400 capitalize">{u.status ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -158,19 +158,19 @@ function AdminDashboardContent() {
             {showTopicForm ? "Cancel" : "+ New Topic"}
           </button>
           {showTopicForm && (
-            <form onSubmit={createTopic} className="mb-6 rounded-xl border border-gray-200 bg-white p-5 space-y-4">
+            <form onSubmit={createTopic} className="mb-6 rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-4">
               <input
                 placeholder="Topic title"
                 value={topicTitle}
                 onChange={(e) => setTopicTitle(e.target.value)}
                 required
-                className="block w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-900 focus:border-teal-500 focus:outline-none"
+                className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-2 text-gray-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
               />
               <div className="grid grid-cols-2 gap-4">
                 <select
                   value={topicCategory}
                   onChange={(e) => setTopicCategory(e.target.value as TopicCategory)}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-gray-900 focus:border-teal-500 focus:outline-none"
+                  className="rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-2 text-gray-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
                 >
                   <option value="everyday">Everyday</option>
                   <option value="travel">Travel</option>
@@ -180,7 +180,7 @@ function AdminDashboardContent() {
                 <select
                   value={topicLevel}
                   onChange={(e) => setTopicLevel(e.target.value as LevelCode)}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-gray-900 focus:border-teal-500 focus:outline-none"
+                  className="rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-2 text-gray-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
                 >
                   {Object.entries(LEVELS).map(([code, name]) => (
                     <option key={code} value={code}>{name}</option>
@@ -192,14 +192,14 @@ function AdminDashboardContent() {
                 value={topicQuestions}
                 onChange={(e) => setTopicQuestions(e.target.value)}
                 rows={3}
-                className="block w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-900 focus:border-teal-500 focus:outline-none"
+                className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-2 text-gray-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
               />
               <textarea
                 placeholder="Vocabulary hints (one per line)"
                 value={topicVocab}
                 onChange={(e) => setTopicVocab(e.target.value)}
                 rows={3}
-                className="block w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-900 focus:border-teal-500 focus:outline-none"
+                className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-2 text-gray-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
               />
               <button
                 type="submit"
@@ -213,13 +213,13 @@ function AdminDashboardContent() {
             {topics.map((t) => (
               <div
                 key={t.topicId}
-                className={`flex items-center justify-between rounded-xl border bg-white p-4 ${
-                  t.isActive ? "border-gray-200" : "border-gray-200 opacity-50"
+                className={`flex items-center justify-between rounded-xl border bg-white dark:bg-slate-900 p-4 ${
+                  t.isActive ? "border-gray-200 dark:border-slate-800" : "border-gray-200 dark:border-slate-800 opacity-50"
                 }`}
               >
                 <div>
-                  <p className="font-medium text-gray-900">{t.title}</p>
-                  <p className="text-sm text-gray-500">
+                  <p className="font-medium text-gray-900 dark:text-slate-100">{t.title}</p>
+                  <p className="text-sm text-gray-500 dark:text-slate-400">
                     {t.category} · {LEVELS[t.level as LevelCode]} · {t.promptQuestions?.length ?? 0} questions
                   </p>
                 </div>
@@ -227,7 +227,7 @@ function AdminDashboardContent() {
                   onClick={() => toggleTopicActive(t)}
                   className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
                     t.isActive
-                      ? "border border-gray-300 text-gray-600 hover:bg-gray-100"
+                      ? "border border-gray-300 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 dark:bg-slate-800"
                       : "bg-teal-600 text-white hover:bg-teal-700"
                   }`}
                 >
@@ -241,31 +241,31 @@ function AdminDashboardContent() {
 
       {/* Sessions Tab */}
       {tab === "sessions" && (
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+        <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900">
           <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 dark:bg-slate-950">
               <tr>
-                <th className="px-4 py-3 font-medium text-gray-600">Session</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Status</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Duration</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Amount</th>
+                <th className="px-4 py-3 font-medium text-gray-600 dark:text-slate-300">Session</th>
+                <th className="px-4 py-3 font-medium text-gray-600 dark:text-slate-300">Status</th>
+                <th className="px-4 py-3 font-medium text-gray-600 dark:text-slate-300">Duration</th>
+                <th className="px-4 py-3 font-medium text-gray-600 dark:text-slate-300">Amount</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {sessions.map((s) => (
                 <tr key={s.sessionId}>
-                  <td className="px-4 py-3 font-medium text-gray-900">#{s.sessionId.slice(0, 8)}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900 dark:text-slate-100">#{s.sessionId.slice(0, 8)}</td>
                   <td className="px-4 py-3">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
                       s.status === "active" ? "bg-green-100 text-green-700" :
-                      s.status === "ended" ? "bg-gray-100 text-gray-600" :
+                      s.status === "ended" ? "bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300" :
                       "bg-yellow-100 text-yellow-700"
                     }`}>
                       {s.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-500">{s.durationMinutes ?? "—"} min</td>
-                  <td className="px-4 py-3 text-gray-500">${s.amountCharged?.toFixed(2) ?? "0.00"}</td>
+                  <td className="px-4 py-3 text-gray-500 dark:text-slate-400">{s.durationMinutes ?? "—"} min</td>
+                  <td className="px-4 py-3 text-gray-500 dark:text-slate-400">${s.amountCharged?.toFixed(2) ?? "0.00"}</td>
                 </tr>
               ))}
             </tbody>

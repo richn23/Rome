@@ -206,18 +206,18 @@ function AvailabilityContent() {
     <div className="mx-auto max-w-4xl space-y-8 px-4 py-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium uppercase tracking-[0.15em] text-teal-600">Availability</p>
-          <h1 className="text-2xl font-bold text-slate-900">Manage your hours</h1>
+          <p className="text-sm font-medium uppercase tracking-[0.15em] text-teal-600 dark:text-teal-400">Availability</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Manage your hours</h1>
         </div>
-        <Link href="/dashboard/speaker" className="text-sm font-medium text-teal-700 hover:text-teal-800">
+        <Link href="/dashboard/speaker" className="text-sm font-medium text-teal-700 dark:text-teal-300 hover:text-teal-800">
           Back to dashboard
         </Link>
       </div>
 
       {/* Recurring rules */}
-      <section className="rounded-2xl border border-slate-200 bg-white p-6">
-        <h2 className="mb-1 text-lg font-bold text-slate-900">Weekly hours</h2>
-        <p className="mb-5 text-sm text-slate-500">
+      <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
+        <h2 className="mb-1 text-lg font-bold text-slate-900 dark:text-slate-100">Weekly hours</h2>
+        <p className="mb-5 text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
           Set hours that repeat every week. We will generate slots for the next {WEEKS_AHEAD} weeks.
         </p>
 
@@ -225,7 +225,7 @@ function AvailabilityContent() {
           <select
             value={ruleDay}
             onChange={(e) => setRuleDay(Number(e.target.value))}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-teal-500 focus:outline-none"
+            className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
           >
             {DAY_NAMES.map((d, i) => (
               <option key={i} value={i}>{d}</option>
@@ -236,14 +236,14 @@ function AvailabilityContent() {
             step={1800}
             value={ruleTime}
             onChange={(e) => setRuleTime(e.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-teal-500 focus:outline-none"
+            className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
           />
-          <label className="flex items-center gap-2 text-sm text-slate-700">
+          <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
             <input
               type="checkbox"
               checked={ruleAutoConfirm}
               onChange={(e) => setRuleAutoConfirm(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300"
+              className="h-4 w-4 rounded border-slate-300 dark:border-slate-700"
             />
             Open session
           </label>
@@ -256,15 +256,15 @@ function AvailabilityContent() {
         </form>
 
         {rules.length === 0 ? (
-          <p className="text-sm text-slate-400">No weekly hours yet</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500">No weekly hours yet</p>
         ) : (
           <div className="space-y-2">
             {rules.map((r) => (
               <div
                 key={r.recurrenceId}
-                className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-2"
+                className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 px-4 py-2"
               >
-                <span className="text-sm text-slate-700">
+                <span className="text-sm text-slate-700 dark:text-slate-200">
                   Every <strong>{DAY_NAMES[r.dayOfWeek]}</strong> at{" "}
                   <strong>{String(r.hour).padStart(2, "0")}:{String(r.minute).padStart(2, "0")}</strong>
                   {r.autoConfirm ? (
@@ -286,9 +286,9 @@ function AvailabilityContent() {
       </section>
 
       {/* One-off slots */}
-      <section className="rounded-2xl border border-slate-200 bg-white p-6">
-        <h2 className="mb-1 text-lg font-bold text-slate-900">One-off slot</h2>
-        <p className="mb-5 text-sm text-slate-500">Add a single 30-minute slot for a specific date and time.</p>
+      <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
+        <h2 className="mb-1 text-lg font-bold text-slate-900 dark:text-slate-100">One-off slot</h2>
+        <p className="mb-5 text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">Add a single 30-minute slot for a specific date and time.</p>
 
         <form onSubmit={handleAddOneOff} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto_auto]">
           <input
@@ -296,7 +296,7 @@ function AvailabilityContent() {
             value={slotDate}
             onChange={(e) => setSlotDate(e.target.value)}
             required
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-teal-500 focus:outline-none"
+            className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
           />
           <input
             type="time"
@@ -304,14 +304,14 @@ function AvailabilityContent() {
             value={slotTime}
             onChange={(e) => setSlotTime(e.target.value)}
             required
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-teal-500 focus:outline-none"
+            className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
           />
-          <label className="flex items-center gap-2 text-sm text-slate-700">
+          <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
             <input
               type="checkbox"
               checked={slotAutoConfirm}
               onChange={(e) => setSlotAutoConfirm(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300"
+              className="h-4 w-4 rounded border-slate-300 dark:border-slate-700"
             />
             Open session
           </label>
@@ -326,24 +326,24 @@ function AvailabilityContent() {
 
       {/* Upcoming slots list */}
       <section>
-        <h2 className="mb-3 text-lg font-bold text-slate-900">Your upcoming slots</h2>
+        <h2 className="mb-3 text-lg font-bold text-slate-900 dark:text-slate-100">Your upcoming slots</h2>
         {Object.keys(grouped).length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 py-10 text-center text-sm text-slate-500">
+          <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 py-10 text-center text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
             No upcoming slots
           </div>
         ) : (
           <div className="space-y-4">
             {Object.entries(grouped).map(([day, ds]) => (
               <div key={day}>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{day}</p>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 dark:text-slate-500">{day}</p>
                 <div className="space-y-2">
                   {ds.map((s) => (
                     <div
                       key={s.slotId}
-                      className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3"
+                      className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3"
                     >
                       <div className="flex items-center gap-3">
-                        <span className="font-medium text-slate-900">{formatTime(s.scheduledFor)}</span>
+                        <span className="font-medium text-slate-900 dark:text-slate-100">{formatTime(s.scheduledFor)}</span>
                         {s.autoConfirm ? (
                           <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">Open</span>
                         ) : (
@@ -353,7 +353,7 @@ function AvailabilityContent() {
                           <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">Booked</span>
                         )}
                         {s.recurrenceId && (
-                          <span className="text-xs text-slate-400">recurring</span>
+                          <span className="text-xs text-slate-400 dark:text-slate-500">recurring</span>
                         )}
                       </div>
                       <button

@@ -3,9 +3,10 @@ import { Timestamp } from "firebase/firestore";
 export type UserRole = "speaker" | "learner" | "admin";
 export type SpeakerStatus = "online" | "busy" | "offline";
 export type SessionStatus = "waiting" | "active" | "ended" | "rejected";
-export type BookingStatus = "pending" | "admitted" | "rejected";
+export type BookingStatus = "pending" | "admitted" | "rejected" | "cancelled";
 export type TopicCategory = "everyday" | "travel" | "work" | "culture";
 export type SlotStatus = "available" | "booked" | "cancelled";
+export type LevelSignalType = "too_easy" | "just_right" | "too_hard";
 
 export const LEVELS = {
   "1a": "Beginner (lower)",
@@ -28,12 +29,14 @@ export interface UserProfile {
   photoURL: string;
   level?: LevelCode;
   nativeLanguage?: string;
+  learningLanguage?: string;
   bio?: string;
   status?: SpeakerStatus;
   hourlyRate?: number;
   rating?: number;
   totalSessions?: number;
   introVideoURL?: string;
+  awayMode?: boolean;
   createdAt: Timestamp;
 }
 
@@ -107,6 +110,16 @@ export interface RecurrenceRule {
   minute: number; // 0 or 30
   autoConfirm: boolean;
   active: boolean;
+  createdAt: Timestamp;
+}
+
+export interface LevelSignal {
+  signalId: string;
+  sessionId: string;
+  speakerId: string;
+  learnerId: string;
+  signalType: LevelSignalType;
+  atLevel: LevelCode; // learner's level at the time the signal was given
   createdAt: Timestamp;
 }
 

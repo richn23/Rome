@@ -61,7 +61,7 @@ export default function Home() {
           </Link>
           <Link
             href="/signup"
-            className="rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 px-5 py-2 text-sm font-semibold text-slate-900 shadow-lg shadow-teal-500/30 transition hover:shadow-teal-400/50"
+            className="rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 px-5 py-2 text-sm font-semibold text-slate-900 dark:text-slate-100 shadow-lg shadow-teal-500/30 transition hover:shadow-teal-400/50"
           >
             Get started
           </Link>
@@ -124,7 +124,7 @@ export default function Home() {
           <div className="reveal flex flex-col gap-3 sm:flex-row">
             <Link
               href="/signup"
-              className="group rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 px-8 py-3.5 text-base font-semibold text-slate-900 shadow-xl shadow-teal-500/30 transition hover:shadow-teal-400/60"
+              className="group rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 px-8 py-3.5 text-base font-semibold text-slate-900 dark:text-slate-100 shadow-xl shadow-teal-500/30 transition hover:shadow-teal-400/60"
             >
               Start practicing
               <span className="ml-1 inline-block transition-transform group-hover:translate-x-1">→</span>
@@ -152,17 +152,17 @@ export default function Home() {
       {/* ============== SECTION 2 — THE TENNIS ANALOGY ============== */}
       <section className="relative bg-[#f8fffe] px-6 py-24 md:py-32">
         <div className="mx-auto max-w-4xl">
-          <p className="reveal mb-4 text-sm font-medium uppercase tracking-[0.25em] text-teal-600">
+          <p className="reveal mb-4 text-sm font-medium uppercase tracking-[0.25em] text-teal-600 dark:text-teal-400">
             A simple idea
           </p>
-          <h2 className="reveal mb-10 text-3xl font-bold leading-tight tracking-tight text-slate-900 md:text-5xl">
-            Think about learning <span className="italic text-teal-600">anything.</span>
+          <h2 className="reveal mb-10 text-3xl font-bold leading-tight tracking-tight text-slate-900 dark:text-slate-100 md:text-5xl">
+            Think about learning <span className="italic text-teal-600 dark:text-teal-400">anything.</span>
           </h2>
 
-          <div className="reveal space-y-6 text-lg leading-relaxed text-slate-700 md:text-xl">
+          <div className="reveal space-y-6 text-lg leading-relaxed text-slate-700 dark:text-slate-200 md:text-xl">
             <p>
               Take tennis. Sometimes you need a lesson with a coach — to improve your skills and
-              technique. Other times, you just need to <span className="font-semibold text-slate-900">practice</span>.
+              technique. Other times, you just need to <span className="font-semibold text-slate-900 dark:text-slate-100">practice</span>.
             </p>
             <p>
               Language learning is the same. We need teachers to guide and improve us — but we also
@@ -172,21 +172,21 @@ export default function Home() {
 
           {/* Two-card visual metaphor */}
           <div className="reveal mt-16 grid gap-6 md:grid-cols-2">
-            <div className="group rounded-3xl border border-slate-200 bg-white p-8 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-2xl">
+            <div className="group rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800 text-2xl">
                 📘
               </div>
-              <h3 className="mb-2 text-xl font-bold text-slate-900">The lesson</h3>
-              <p className="text-slate-600">
+              <h3 className="mb-2 text-xl font-bold text-slate-900 dark:text-slate-100">The lesson</h3>
+              <p className="text-slate-600 dark:text-slate-300">
                 A teacher explains, corrects, and builds structure. Essential for learning the rules.
               </p>
             </div>
-            <div className="group rounded-3xl border border-teal-200 bg-gradient-to-br from-teal-50 to-cyan-50 p-8 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-100 text-2xl">
+            <div className="group rounded-3xl border border-teal-200 dark:border-teal-900/60 bg-gradient-to-br from-teal-50 to-cyan-50 p-8 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-100 dark:bg-teal-900/40 text-2xl">
                 💬
               </div>
-              <h3 className="mb-2 text-xl font-bold text-slate-900">The practice</h3>
-              <p className="text-slate-600">
+              <h3 className="mb-2 text-xl font-bold text-slate-900 dark:text-slate-100">The practice</h3>
+              <p className="text-slate-600 dark:text-slate-300">
                 Real conversation, away from the classroom. Where learning actually sticks.
               </p>
             </div>
@@ -254,7 +254,7 @@ export default function Home() {
           <div className="reveal mt-16 text-center">
             <Link
               href="/signup"
-              className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 px-10 py-4 text-base font-semibold text-slate-900 shadow-xl shadow-teal-500/30 transition hover:shadow-teal-400/60"
+              className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 px-10 py-4 text-base font-semibold text-slate-900 dark:text-slate-100 shadow-xl shadow-teal-500/30 transition hover:shadow-teal-400/60"
             >
               Start practicing today
               <span className="transition-transform group-hover:translate-x-1">→</span>

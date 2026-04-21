@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   doc,
   updateDoc,
@@ -10,6 +10,7 @@ import {
   onSnapshot,
   orderBy,
   getDocs,
+  getDoc,
   addDoc,
   serverTimestamp,
   Timestamp,
@@ -18,15 +19,23 @@ import Link from "next/link";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import RouteGuard from "@/components/RouteGuard";
-import { SpeakerStatus, Booking, Session, UserProfile, LEVELS, LevelCode } from "@/types";
+import { SpeakerStatus, Booking, Session, UserProfile, Rating, LEVELS, LevelCode } from "@/types";
 import toast from "react-hot-toast";
 
 function SpeakerDashboardContent() {
   const { userProfile } = useAuth();
   const [status, setStatus] = useState<SpeakerStatus>(userProfile?.status ?? "offline");
   const [pendingBookings, setPendingBookings] = useState<(Booking & { learnerProfile?: UserProfile })[]>([]);
+  const [upcomingBookings, setUpcomingBookings] = useState<(Booking & { learnerProfile?: UserProfile })[]>([]);
   const [history, setHistory] = useState<Session[]>([]);
   const [activeSession, setActiveSession] = useState<Session | null>(null);
+  const [ratings, setRatings] = useState<Rating[]>([]);
+  /* Tick for "join now" buttons */
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   // Sync status from profile
   useEffect(() => {
@@ -80,6 +89,76 @@ function SpeakerDashboardContent() {
       }
     });
     return unsub;
+  }, [userProfile]);
+
+  /* Track previously-seen pending bookings so we can toast on new arrivals */
+  const seenPendingIds = useRef<Set<string>>(new Set());
+  const isInitialPendingLoad = useRef(true);
+  useEffect(() => {
+    const currentIds = new Set(pendingBookings.map((b) => b.bookingId));
+    if (!isInitialPendingLoad.current) {
+      currentIds.forEach((id) => {
+        if (!seenPendingIds.current.has(id)) {
+          const b = pendingBookings.find((x) => x.bookingId === id);
+          const name = b?.learnerProfile?.displayName ?? "A learner";
+          toast(`New booking request from ${name}`, { icon: "📩", duration: 6000 });
+        }
+      });
+    }
+    seenPendingIds.current = currentIds;
+    isInitialPendingLoad.current = false;
+  }, [pendingBookings]);
+
+  /* Upcoming bookings: admitted + scheduled + in the future */
+  useEffect(() => {
+    if (!userProfile) return;
+    const q = query(
+      collection(db, "bookings"),
+      where("speakerId", "==", userProfile.uid),
+      where("status", "==", "admitted")
+    );
+    const unsub = onSnapshot(q, async (snap) => {
+      const all: Booking[] = [];
+      snap.forEach((d) => all.push({ bookingId: d.id, ...d.data() } as Booking));
+      const now = new Date();
+      const future = all.filter(
+        (b) => b.scheduledFor && b.scheduledFor.toDate() > now
+      );
+      future.sort(
+        (a, b) =>
+          (a.scheduledFor?.toMillis?.() ?? 0) - (b.scheduledFor?.toMillis?.() ?? 0)
+      );
+
+      // Hydrate learner profiles
+      const enriched = await Promise.all(
+        future.map(async (b) => {
+          const p = await getDoc(doc(db, "users", b.learnerId));
+          return {
+            ...b,
+            learnerProfile: p.exists() ? (p.data() as UserProfile) : undefined,
+          };
+        })
+      );
+      setUpcomingBookings(enriched);
+    });
+    return unsub;
+  }, [userProfile]);
+
+  /* Ratings received */
+  useEffect(() => {
+    if (!userProfile) return;
+    const fetchRatings = async () => {
+      const q = query(
+        collection(db, "ratings"),
+        where("speakerId", "==", userProfile.uid),
+        orderBy("createdAt", "desc")
+      );
+      const snap = await getDocs(q);
+      const arr: Rating[] = [];
+      snap.forEach((d) => arr.push({ ratingId: d.id, ...d.data() } as Rating));
+      setRatings(arr);
+    };
+    fetchRatings();
   }, [userProfile]);
 
   // Fetch session history
@@ -139,23 +218,82 @@ function SpeakerDashboardContent() {
     });
   };
 
-  const totalEarnings = history.reduce((sum, s) => sum + (s.speakerPayout ?? 0), 0);
+  /* Cancel an upcoming booking (speaker side) */
+  const handleCancelUpcoming = async (b: Booking) => {
+    if (!confirm("Cancel this scheduled session? The learner will be notified.")) return;
+    try {
+      await updateDoc(doc(db, "bookings", b.bookingId), { status: "cancelled" });
+      if (b.slotId) {
+        await updateDoc(doc(db, "availability", b.slotId), {
+          status: "available",
+          bookingId: null,
+        });
+      }
+      toast.success("Session cancelled");
+    } catch (err: any) {
+      toast.error(err.message || "Could not cancel");
+    }
+  };
+
+  /* Earnings breakdown */
+  const earnings = useMemo(() => {
+    const now = new Date();
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - now.getDay()); // Sunday
+    weekStart.setHours(0, 0, 0, 0);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    let week = 0;
+    let month = 0;
+    let all = 0;
+    history.forEach((s) => {
+      const pay = s.speakerPayout ?? 0;
+      all += pay;
+      const endedDate = s.endedAt?.toDate?.();
+      if (!endedDate) return;
+      if (endedDate >= monthStart) month += pay;
+      if (endedDate >= weekStart) week += pay;
+    });
+    return { week, month, all };
+  }, [history]);
+
+  /* Avg rating */
+  const avgRating = useMemo(() => {
+    if (ratings.length === 0) return userProfile?.rating ?? 0;
+    const total = ratings.reduce((sum, r) => sum + r.score, 0);
+    return total / ratings.length;
+  }, [ratings, userProfile?.rating]);
+
+  const totalEarnings = earnings.all;
 
   return (
     <div className="mx-auto max-w-5xl">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">{userProfile?.displayName}</h2>
-          <p className="text-sm text-gray-500">Speaker Dashboard</p>
-          <Link
-            href="/dashboard/speaker/availability"
-            className="mt-2 inline-block text-sm font-medium text-teal-700 hover:text-teal-800"
-          >
-            Manage availability &rarr;
-          </Link>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">{userProfile?.displayName}</h2>
+          <p className="text-sm text-gray-500 dark:text-slate-400">Speaker Dashboard</p>
+          <div className="mt-2 flex flex-wrap gap-4 text-sm font-medium">
+            <Link
+              href="/dashboard/speaker/profile"
+              className="text-teal-700 dark:text-teal-300 hover:text-teal-800"
+            >
+              Edit profile &rarr;
+            </Link>
+            <Link
+              href="/dashboard/speaker/availability"
+              className="text-teal-700 dark:text-teal-300 hover:text-teal-800"
+            >
+              Manage availability &rarr;
+            </Link>
+          </div>
+          {userProfile?.awayMode && (
+            <span className="mt-2 inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800">
+              Away mode on — learners can&apos;t see you
+            </span>
+          )}
         </div>
         {/* Status Toggle */}
-        <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
+        <div className="flex gap-1 rounded-lg bg-gray-100 dark:bg-slate-800 p-1">
           {(["online", "busy", "offline"] as SpeakerStatus[]).map((s) => (
             <button
               key={s}
@@ -167,7 +305,7 @@ function SpeakerDashboardContent() {
                     : s === "busy"
                     ? "bg-yellow-500 text-white shadow-sm"
                     : "bg-gray-400 text-white shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
+                  : "text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-200"
               }`}
             >
               {s}
@@ -177,28 +315,44 @@ function SpeakerDashboardContent() {
       </div>
 
       {/* Stats */}
-      <div className="mb-6 grid grid-cols-3 gap-4">
-        <div className="rounded-xl border border-gray-200 bg-white p-5 text-center">
-          <p className="text-3xl font-bold text-teal-600">{userProfile?.totalSessions ?? 0}</p>
-          <p className="text-sm text-gray-500">Sessions</p>
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">This week</p>
+          <p className="mt-1 text-2xl font-bold text-teal-600 dark:text-teal-400">${earnings.week.toFixed(2)}</p>
         </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-5 text-center">
-          <p className="text-3xl font-bold text-teal-600">
-            {"★".repeat(Math.round(userProfile?.rating ?? 0))}
+        <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">This month</p>
+          <p className="mt-1 text-2xl font-bold text-teal-600 dark:text-teal-400">${earnings.month.toFixed(2)}</p>
+        </div>
+        <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">All time</p>
+          <p className="mt-1 text-2xl font-bold text-teal-600 dark:text-teal-400">${earnings.all.toFixed(2)}</p>
+        </div>
+        <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Sessions</p>
+          <p className="mt-1 text-2xl font-bold text-teal-600 dark:text-teal-400">{history.length}</p>
+        </div>
+        <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Rating</p>
+          <p className="mt-1 text-2xl font-bold text-amber-500">
+            {avgRating > 0 ? avgRating.toFixed(1) : "—"}
+            <span className="ml-1 text-sm text-gray-400 dark:text-slate-500">({ratings.length})</span>
           </p>
-          <p className="text-sm text-gray-500">Rating</p>
-        </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-5 text-center">
-          <p className="text-3xl font-bold text-teal-600">${totalEarnings.toFixed(2)}</p>
-          <p className="text-sm text-gray-500">Earnings</p>
         </div>
       </div>
 
       {/* Incoming Requests */}
       <div className="mb-6">
-        <h3 className="mb-3 text-lg font-semibold text-gray-900">Incoming Requests</h3>
+        <div className="mb-3 flex items-center gap-2">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Incoming Requests</h3>
+          {pendingBookings.length > 0 && (
+            <span className="rounded-full bg-teal-600 px-2 py-0.5 text-xs font-semibold text-white">
+              {pendingBookings.length}
+            </span>
+          )}
+        </div>
         {pendingBookings.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-300 py-10 text-center text-gray-400">
+          <div className="rounded-xl border border-dashed border-gray-300 dark:border-slate-700 py-10 text-center text-gray-400 dark:text-slate-500">
             No pending requests
           </div>
         ) : (
@@ -206,16 +360,38 @@ function SpeakerDashboardContent() {
             {pendingBookings.map((b) => (
               <div
                 key={b.bookingId}
-                className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4"
+                className="flex items-center justify-between rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4"
               >
-                <div>
-                  <p className="font-medium text-gray-900">
-                    {b.learnerProfile?.displayName ?? "Learner"}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Level: {b.learnerProfile?.level ? LEVELS[b.learnerProfile.level as LevelCode] : "Unknown"}
-                    {b.topicSuggestion && ` · Topic: ${b.topicSuggestion}`}
-                  </p>
+                <div className="flex items-center gap-3">
+                  {b.learnerProfile?.photoURL ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={b.learnerProfile.photoURL}
+                      alt=""
+                      className="h-11 w-11 rounded-full object-cover ring-1 ring-teal-100 dark:ring-teal-900/50"
+                    />
+                  ) : (
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 font-bold text-white">
+                      {b.learnerProfile?.displayName?.charAt(0).toUpperCase() ?? "?"}
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-slate-100">
+                      {b.learnerProfile?.displayName ?? "Learner"}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-slate-400">
+                      {b.learnerProfile?.level
+                        ? LEVELS[b.learnerProfile.level as LevelCode]
+                        : "Unknown level"}
+                      {b.learnerProfile?.learningLanguage &&
+                        ` · Learning ${b.learnerProfile.learningLanguage}`}
+                    </p>
+                    {b.topicSuggestion && (
+                      <p className="mt-1 text-sm italic text-slate-600 dark:text-slate-300">
+                        &ldquo;{b.topicSuggestion}&rdquo;
+                      </p>
+                    )}
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -226,7 +402,7 @@ function SpeakerDashboardContent() {
                   </button>
                   <button
                     onClick={() => handleReject(b)}
-                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100"
+                    className="rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-2 text-sm font-medium text-gray-600 dark:text-slate-300 transition hover:bg-gray-100 dark:hover:bg-slate-800 dark:bg-slate-800"
                   >
                     Reject
                   </button>
@@ -237,24 +413,131 @@ function SpeakerDashboardContent() {
         )}
       </div>
 
+      {/* Upcoming Sessions */}
+      {upcomingBookings.length > 0 && (
+        <div className="mb-6">
+          <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-slate-100">Upcoming Sessions</h3>
+          <div className="space-y-3">
+            {upcomingBookings.map((b) => {
+              const when = b.scheduledFor?.toDate?.();
+              const minutesAway = when
+                ? (when.getTime() - nowTick) / 60_000
+                : null;
+              const joinable = minutesAway !== null && minutesAway <= 15;
+              return (
+                <div
+                  key={b.bookingId}
+                  className="flex items-center justify-between rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4"
+                >
+                  <div className="flex items-center gap-3">
+                    {b.learnerProfile?.photoURL ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={b.learnerProfile.photoURL}
+                        alt=""
+                        className="h-11 w-11 rounded-full object-cover ring-1 ring-teal-100 dark:ring-teal-900/50"
+                      />
+                    ) : (
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 font-bold text-white">
+                        {b.learnerProfile?.displayName?.charAt(0).toUpperCase() ?? "?"}
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-slate-100">
+                        {b.learnerProfile?.displayName ?? "Learner"}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-slate-400">
+                        {when?.toLocaleString(undefined, {
+                          weekday: "short",
+                          month: "short",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                        {b.learnerProfile?.level &&
+                          ` · ${LEVELS[b.learnerProfile.level as LevelCode]}`}
+                      </p>
+                      {b.topicSuggestion && (
+                        <p className="mt-1 text-sm italic text-slate-600 dark:text-slate-300">
+                          &ldquo;{b.topicSuggestion}&rdquo;
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    {joinable && b.sessionId && (
+                      <Link
+                        href={`/call/${b.sessionId}`}
+                        className="rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:shadow-md"
+                      >
+                        Join
+                      </Link>
+                    )}
+                    <button
+                      onClick={() => handleCancelUpcoming(b)}
+                      className="rounded-lg border border-gray-300 dark:border-slate-700 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Ratings Received */}
+      {ratings.length > 0 && (
+        <div className="mb-6">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Recent Reviews</h3>
+            <span className="text-sm text-gray-500 dark:text-slate-400">
+              {avgRating.toFixed(1)} average
+            </span>
+          </div>
+          <div className="space-y-3">
+            {ratings.slice(0, 5).map((r) => (
+              <div
+                key={r.ratingId}
+                className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-amber-500">
+                    {"★".repeat(r.score)}
+                    <span className="text-gray-300">{"★".repeat(5 - r.score)}</span>
+                  </span>
+                  <span className="text-xs text-gray-400 dark:text-slate-500">
+                    {r.createdAt?.toDate?.()?.toLocaleDateString() ?? ""}
+                  </span>
+                </div>
+                {r.comment && (
+                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">&ldquo;{r.comment}&rdquo;</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* History */}
       <div>
-        <h3 className="mb-3 text-lg font-semibold text-gray-900">Session History</h3>
+        <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-slate-100">Session History</h3>
         {history.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-300 py-10 text-center text-gray-400">
+          <div className="rounded-xl border border-dashed border-gray-300 dark:border-slate-700 py-10 text-center text-gray-400 dark:text-slate-500">
             No sessions yet
           </div>
         ) : (
           <div className="space-y-3">
             {history.map((s) => (
-              <div key={s.sessionId} className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4">
+              <div key={s.sessionId} className="flex items-center justify-between rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
                 <div>
-                  <p className="font-medium text-gray-900">Session #{s.sessionId.slice(0, 8)}</p>
-                  <p className="text-sm text-gray-500">
+                  <p className="font-medium text-gray-900 dark:text-slate-100">Session #{s.sessionId.slice(0, 8)}</p>
+                  <p className="text-sm text-gray-500 dark:text-slate-400">
                     {s.durationMinutes ?? 0} min · ${s.speakerPayout?.toFixed(2) ?? "0.00"}
                   </p>
                 </div>
-                <span className="text-sm text-gray-400">
+                <span className="text-sm text-gray-400 dark:text-slate-500">
                   {s.endedAt?.toDate?.()?.toLocaleDateString() ?? ""}
                 </span>
               </div>
