@@ -71,6 +71,31 @@ const DEMO_SPEAKERS = [
   },
 ];
 
+/**
+ * Numbered generic demo speakers — useful for smoke-testing lists, filters,
+ * and the Scheduled tab. Languages and statuses spread across sensible ranges.
+ */
+const NUMBERED_DEMO_SPEAKERS = [
+  { lang: "English",    status: "online",  rate: 18, rating: 4.5, sessions: 12 },
+  { lang: "Portuguese", status: "online",  rate: 16, rating: 4.7, sessions: 28 },
+  { lang: "Italian",    status: "busy",    rate: 19, rating: 4.4, sessions: 19 },
+  { lang: "Korean",     status: "online",  rate: 24, rating: 4.8, sessions: 40 },
+  { lang: "Dutch",      status: "offline", rate: 17, rating: 4.3, sessions: 9  },
+].map((s, i) => ({
+  uid: `demo-speaker-${i + 1}`,
+  role: "speaker",
+  displayName: `Demo Speaker ${i + 1}`,
+  email: `demo.speaker.${i + 1}@demo.com`,
+  photoURL: "",
+  nativeLanguage: s.lang,
+  bio: `Generic demo speaker #${i + 1} (native ${s.lang}). Use for smoke-testing.`,
+  status: s.status,
+  hourlyRate: s.rate,
+  rating: s.rating,
+  totalSessions: s.sessions,
+  createdAt: serverTimestamp(),
+}));
+
 const DEMO_LEARNERS = [
   {
     uid: "learner-alex",
@@ -79,6 +104,8 @@ const DEMO_LEARNERS = [
     email: "alex@demo.com",
     photoURL: "",
     level: "2b",
+    nativeLanguage: "English",
+    learningLanguage: "Spanish",
     createdAt: serverTimestamp(),
   },
   {
@@ -88,9 +115,27 @@ const DEMO_LEARNERS = [
     email: "sarah@demo.com",
     photoURL: "",
     level: "3a",
+    nativeLanguage: "English",
+    learningLanguage: "French",
     createdAt: serverTimestamp(),
   },
 ];
+
+const NUMBERED_DEMO_LEARNERS = [
+  { level: "1b", learning: "Spanish"  },
+  { level: "2a", learning: "Japanese" },
+  { level: "3b", learning: "French"   },
+].map((l, i) => ({
+  uid: `demo-learner-${i + 1}`,
+  role: "learner",
+  displayName: `Demo Learner ${i + 1}`,
+  email: `demo.learner.${i + 1}@demo.com`,
+  photoURL: "",
+  level: l.level,
+  nativeLanguage: "English",
+  learningLanguage: l.learning,
+  createdAt: serverTimestamp(),
+}));
 
 const DEMO_ADMIN = {
   uid: "admin-main",
@@ -164,6 +209,14 @@ const DEMO_TOPICS = [
   },
 ];
 
+/** Build a Date set to days-from-now at hour:minute in local time. */
+function futureDate(daysFromNow: number, hour: number, minute = 0): Date {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromNow);
+  d.setHours(hour, minute, 0, 0);
+  return d;
+}
+
 export default function SeedPage() {
   const [seeding, setSeeding] = useState(false);
   const [done, setDone] = useState(false);
@@ -171,12 +224,12 @@ export default function SeedPage() {
   const handleSeed = async () => {
     setSeeding(true);
     try {
-      // Seed speakers
-      for (const speaker of DEMO_SPEAKERS) {
+      // Seed named + numbered speakers
+      for (const speaker of [...DEMO_SPEAKERS, ...NUMBERED_DEMO_SPEAKERS]) {
         await setDoc(doc(db, "users", speaker.uid), speaker);
       }
-      // Seed learners
-      for (const learner of DEMO_LEARNERS) {
+      // Seed named + numbered learners
+      for (const learner of [...DEMO_LEARNERS, ...NUMBERED_DEMO_LEARNERS]) {
         await setDoc(doc(db, "users", learner.uid), learner);
       }
       // Seed admin
@@ -187,6 +240,33 @@ export default function SeedPage() {
         await addDoc(collection(db, "topics"), {
           ...topic,
           createdBy: DEMO_ADMIN.uid,
+          createdAt: serverTimestamp(),
+        });
+      }
+
+      // Seed availability slots so the learner Scheduled tab has content.
+      // Spread across a few speakers over the next 2 weeks.
+      const slotPlan: Array<{ speakerId: string; when: Date; autoConfirm: boolean }> = [
+        { speakerId: "speaker-maria",   when: futureDate(1, 9,  0),  autoConfirm: true  },
+        { speakerId: "speaker-maria",   when: futureDate(1, 17, 30), autoConfirm: true  },
+        { speakerId: "speaker-yuki",    when: futureDate(2, 8,  0),  autoConfirm: true  },
+        { speakerId: "speaker-yuki",    when: futureDate(3, 20, 0),  autoConfirm: false },
+        { speakerId: "speaker-pierre",  when: futureDate(2, 14, 0),  autoConfirm: true  },
+        { speakerId: "demo-speaker-1",  when: futureDate(1, 10, 0),  autoConfirm: true  },
+        { speakerId: "demo-speaker-1",  when: futureDate(4, 10, 0),  autoConfirm: true  },
+        { speakerId: "demo-speaker-2",  when: futureDate(3, 12, 0),  autoConfirm: true  },
+        { speakerId: "demo-speaker-4",  when: futureDate(5, 18, 0),  autoConfirm: true  },
+        { speakerId: "demo-speaker-4",  when: futureDate(6, 18, 0),  autoConfirm: true  },
+      ];
+      for (const s of slotPlan) {
+        await addDoc(collection(db, "availability"), {
+          speakerId: s.speakerId,
+          scheduledFor: Timestamp.fromDate(s.when),
+          durationMinutes: 30,
+          autoConfirm: s.autoConfirm,
+          status: "available",
+          bookingId: null,
+          recurrenceId: null,
           createdAt: serverTimestamp(),
         });
       }
@@ -237,22 +317,28 @@ export default function SeedPage() {
     }
   };
 
+  const totalSpeakers = DEMO_SPEAKERS.length + NUMBERED_DEMO_SPEAKERS.length;
+  const totalLearners = DEMO_LEARNERS.length + NUMBERED_DEMO_LEARNERS.length;
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-teal-50 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-lg">
-        <h1 className="mb-2 text-2xl font-bold text-teal-700">Seed Demo Data</h1>
-        <p className="mb-6 text-sm text-gray-500">
-          This will create demo speakers, learners, topics, and a completed session.
+    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4">
+      <div className="pointer-events-none absolute -top-20 -left-20 h-[32rem] w-[32rem] rounded-full bg-teal-500/20 blur-3xl drift" />
+      <div className="pointer-events-none absolute -right-20 top-40 h-[28rem] w-[28rem] rounded-full bg-cyan-400/15 blur-3xl drift-delay" />
+      <div className="relative z-10 w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-8 text-center shadow-2xl backdrop-blur-xl">
+        <h1 className="mb-2 text-2xl font-bold text-white">Seed Demo Data</h1>
+        <p className="mb-6 text-sm text-slate-400">
+          Creates {totalSpeakers} speakers ({DEMO_SPEAKERS.length} named + {NUMBERED_DEMO_SPEAKERS.length} numbered),{" "}
+          {totalLearners} learners, 5 topics, availability slots, and a completed session with a rating.
         </p>
         {done ? (
-          <div className="text-green-600 font-medium">
+          <div className="font-medium text-teal-300">
             Done! Demo data has been seeded.
           </div>
         ) : (
           <button
             onClick={handleSeed}
             disabled={seeding}
-            className="w-full rounded-lg bg-teal-600 px-4 py-3 font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
+            className="w-full rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 px-4 py-3 font-semibold text-slate-900 shadow-lg shadow-teal-500/30 transition hover:shadow-teal-400/60 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {seeding ? "Seeding..." : "Seed Data"}
           </button>

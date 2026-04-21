@@ -181,11 +181,11 @@ export default function Home() {
                 A teacher explains, corrects, and builds structure. Essential for learning the rules.
               </p>
             </div>
-            <div className="group rounded-3xl border border-teal-200 dark:border-teal-900/60 bg-gradient-to-br from-teal-50 to-cyan-50 p-8 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+            <div className="group rounded-3xl border border-teal-200 bg-gradient-to-br from-teal-50 to-cyan-50 p-8 shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-teal-900/60 dark:from-teal-950/60 dark:to-cyan-950/60">
               <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-100 dark:bg-teal-900/40 text-2xl">
                 💬
               </div>
-              <h3 className="mb-2 text-xl font-bold text-slate-900 dark:text-slate-100">The practice</h3>
+              <h3 className="mb-2 text-xl font-bold text-slate-900 dark:text-teal-100">The practice</h3>
               <p className="text-slate-600 dark:text-slate-300">
                 Real conversation, away from the classroom. Where learning actually sticks.
               </p>

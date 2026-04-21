@@ -576,11 +576,11 @@ function LearnerDashboardContent() {
           <p className="mt-1 text-3xl font-bold text-slate-900 dark:text-slate-100">{stats.totalMinutes}</p>
           <p className="text-xs text-slate-400 dark:text-slate-500">keep going!</p>
         </div>
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-teal-50 to-cyan-50 p-5">
+        <div className="rounded-2xl border border-teal-200 bg-gradient-to-br from-teal-50 to-cyan-50 p-5 dark:border-teal-900/60 dark:from-teal-950/60 dark:to-cyan-950/60">
           <p className="text-sm font-medium text-teal-700 dark:text-teal-300">Current level</p>
-          <p className="mt-1 text-xl font-bold text-slate-900 dark:text-slate-100">{levelName}</p>
+          <p className="mt-1 text-xl font-bold text-slate-900 dark:text-teal-100">{levelName}</p>
           <p className="text-xs text-teal-600 dark:text-teal-400">
-            {userProfile?.level === "4b" ? "Top level!" : "Level up when you're ready"}
+            {userProfile?.level === "4b" ? "Top level!" : "Level up when you\u2019re ready"}
           </p>
         </div>
       </div>
