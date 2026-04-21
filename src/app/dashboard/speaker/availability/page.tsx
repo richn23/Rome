@@ -217,7 +217,7 @@ function AvailabilityContent() {
       {/* Recurring rules */}
       <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
         <h2 className="mb-1 text-lg font-bold text-slate-900 dark:text-slate-100">Weekly hours</h2>
-        <p className="mb-5 text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
+        <p className="mb-5 text-sm text-slate-500 dark:text-slate-400">
           Set hours that repeat every week. We will generate slots for the next {WEEKS_AHEAD} weeks.
         </p>
 
@@ -288,7 +288,7 @@ function AvailabilityContent() {
       {/* One-off slots */}
       <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
         <h2 className="mb-1 text-lg font-bold text-slate-900 dark:text-slate-100">One-off slot</h2>
-        <p className="mb-5 text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">Add a single 30-minute slot for a specific date and time.</p>
+        <p className="mb-5 text-sm text-slate-500 dark:text-slate-400">Add a single 30-minute slot for a specific date and time.</p>
 
         <form onSubmit={handleAddOneOff} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto_auto]">
           <input
@@ -328,14 +328,14 @@ function AvailabilityContent() {
       <section>
         <h2 className="mb-3 text-lg font-bold text-slate-900 dark:text-slate-100">Your upcoming slots</h2>
         {Object.keys(grouped).length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 py-10 text-center text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
+          <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
             No upcoming slots
           </div>
         ) : (
           <div className="space-y-4">
             {Object.entries(grouped).map(([day, ds]) => (
               <div key={day}>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 dark:text-slate-500">{day}</p>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{day}</p>
                 <div className="space-y-2">
                   {ds.map((s) => (
                     <div

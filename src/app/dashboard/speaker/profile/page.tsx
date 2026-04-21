@@ -78,8 +78,8 @@ function SpeakerProfileContent() {
         awayMode,
       });
       toast.success("Profile saved");
-    } catch (err: any) {
-      toast.error(err.message || "Could not save");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save");
     } finally {
       setSaving(false);
     }
@@ -127,7 +127,7 @@ function SpeakerProfileContent() {
             </div>
           )}
           <div className="flex-1">
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 dark:text-slate-500">
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
               Photo URL
             </label>
             <input
@@ -142,7 +142,7 @@ function SpeakerProfileContent() {
 
         {/* Name */}
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 dark:text-slate-500">
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Display name
           </label>
           <input
@@ -156,7 +156,7 @@ function SpeakerProfileContent() {
         {/* Native language + rate */}
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 dark:text-slate-500">
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
               I speak (native)
             </label>
             <select
@@ -171,7 +171,7 @@ function SpeakerProfileContent() {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 dark:text-slate-500">
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
               Hourly rate ($)
             </label>
             <input
@@ -189,7 +189,7 @@ function SpeakerProfileContent() {
 
         {/* Bio */}
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 dark:text-slate-500">
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             About you
           </label>
           <textarea
@@ -208,7 +208,7 @@ function SpeakerProfileContent() {
           <label className="flex items-center justify-between gap-3">
             <div>
               <p className="font-medium text-slate-900 dark:text-slate-100">Away mode</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Hide yourself from learners. Existing bookings stay, but no new ones can be made.
               </p>
             </div>

@@ -4,7 +4,6 @@ import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { doc, onSnapshot, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { useAuth } from "@/contexts/AuthContext";
 import { Booking, UserProfile } from "@/types";
 
 export default function WaitingRoomPage({
@@ -13,7 +12,6 @@ export default function WaitingRoomPage({
   params: Promise<{ bookingId: string }>;
 }) {
   const { bookingId } = use(params);
-  const { user } = useAuth();
   const router = useRouter();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [speaker, setSpeaker] = useState<UserProfile | null>(null);
@@ -58,8 +56,8 @@ export default function WaitingRoomPage({
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-2xl">
             ✕
           </div>
-          <h2 className="mb-2 text-xl font-bold text-gray-900 dark:text-slate-100">Session Declined</h2>
-          <p className="mb-6 text-gray-500 dark:text-slate-400">
+          <h2 className="mb-2 text-xl font-bold text-slate-900 dark:text-slate-100">Session Declined</h2>
+          <p className="mb-6 text-slate-500 dark:text-slate-400">
             {speaker?.displayName ?? "The speaker"} is not available right now.
           </p>
           <button
@@ -79,10 +77,10 @@ export default function WaitingRoomPage({
         <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-teal-100 text-3xl font-bold text-teal-700">
           {speaker?.displayName?.charAt(0)?.toUpperCase() ?? "?"}
         </div>
-        <h2 className="mb-2 text-xl font-bold text-gray-900 dark:text-slate-100">
+        <h2 className="mb-2 text-xl font-bold text-slate-900 dark:text-slate-100">
           Waiting for {speaker?.displayName ?? "speaker"}...
         </h2>
-        <p className="mb-8 text-gray-500 dark:text-slate-400">
+        <p className="mb-8 text-slate-500 dark:text-slate-400">
           Hang tight! {speaker?.displayName ?? "Your speaker"} will admit you shortly.
         </p>
         <div className="mb-8 flex justify-center">
@@ -94,7 +92,7 @@ export default function WaitingRoomPage({
         </div>
         <button
           onClick={handleCancel}
-          className="w-full rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-3 font-medium text-gray-600 dark:text-slate-300 transition hover:bg-gray-50 dark:hover:bg-slate-800"
+          className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-3 font-medium text-slate-600 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800"
         >
           Cancel
         </button>

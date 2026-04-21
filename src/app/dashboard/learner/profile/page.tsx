@@ -75,8 +75,8 @@ function ProfileContent() {
         level,
       });
       toast.success("Profile saved");
-    } catch (err: any) {
-      toast.error(err.message || "Could not save");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save");
     } finally {
       setSaving(false);
     }
@@ -118,7 +118,7 @@ function ProfileContent() {
             </div>
           )}
           <div className="flex-1">
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 dark:text-slate-500">
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
               Photo URL
             </label>
             <input
@@ -134,7 +134,7 @@ function ProfileContent() {
 
         {/* Name */}
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 dark:text-slate-500">
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Display name
           </label>
           <input
@@ -148,7 +148,7 @@ function ProfileContent() {
         {/* Languages */}
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 dark:text-slate-500">
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
               Native language
             </label>
             <select
@@ -165,7 +165,7 @@ function ProfileContent() {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 dark:text-slate-500">
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
               Learning
             </label>
             <select
@@ -185,7 +185,7 @@ function ProfileContent() {
 
         {/* Level */}
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 dark:text-slate-500">
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Current level
           </label>
           <select
@@ -206,7 +206,7 @@ function ProfileContent() {
 
         {/* Bio */}
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 dark:text-slate-500">
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             About you
           </label>
           <textarea

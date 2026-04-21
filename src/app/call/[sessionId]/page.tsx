@@ -13,7 +13,6 @@ import {
   getDoc,
   getDocs,
   where,
-  Timestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -191,8 +190,8 @@ export default function CallRoomPage({
         })
       );
       toast.success("Thanks — feedback sent");
-    } catch (err: any) {
-      toast.error(err.message || "Could not save feedback");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save feedback");
     } finally {
       setLevelSignalSubmitting(false);
       router.push("/dashboard/speaker");
@@ -212,13 +211,13 @@ export default function CallRoomPage({
     return (
       <div className="flex min-h-screen items-center justify-center bg-teal-50 px-4">
         <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
-          <h2 className="mb-1 text-xl font-bold text-gray-900">Nice session!</h2>
-          <p className="mb-6 text-sm text-gray-500">
+          <h2 className="mb-1 text-xl font-bold text-slate-900">Nice session!</h2>
+          <p className="mb-6 text-sm text-slate-500">
             Quick feedback on <strong>{learnerName}</strong>
             {currentLevel && ` (${currentLevel})`}
             . This helps them move at the right pace.
           </p>
-          <p className="mb-3 text-sm font-medium text-gray-700">How was their level?</p>
+          <p className="mb-3 text-sm font-medium text-slate-700">How was their level?</p>
           <div className="space-y-2">
             <button
               disabled={levelSignalSubmitting}
@@ -248,7 +247,7 @@ export default function CallRoomPage({
           <button
             onClick={skipLevelSignal}
             disabled={levelSignalSubmitting}
-            className="mt-3 w-full text-sm text-gray-500 hover:text-gray-700"
+            className="mt-3 w-full text-sm text-slate-500 hover:text-slate-700"
           >
             Skip
           </button>
@@ -262,18 +261,18 @@ export default function CallRoomPage({
     return (
       <div className="flex min-h-screen items-center justify-center bg-teal-50 px-4">
         <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-lg">
-          <h2 className="mb-2 text-xl font-bold text-gray-900">Session Complete!</h2>
-          <p className="mb-6 text-gray-500">
+          <h2 className="mb-2 text-xl font-bold text-slate-900">Session Complete!</h2>
+          <p className="mb-6 text-slate-500">
             Duration: {session?.durationMinutes ?? 0} minutes
           </p>
-          <p className="mb-4 text-sm font-medium text-gray-700">How was your session?</p>
+          <p className="mb-4 text-sm font-medium text-slate-700">How was your session?</p>
           <div className="mb-6 flex justify-center gap-2">
             {[1, 2, 3, 4, 5].map((star) => (
               <button
                 key={star}
                 onClick={() => setRatingScore(star)}
                 className={`text-3xl transition ${
-                  star <= ratingScore ? "text-yellow-400" : "text-gray-300"
+                  star <= ratingScore ? "text-yellow-400" : "text-slate-300"
                 }`}
               >
                 ★
@@ -289,7 +288,7 @@ export default function CallRoomPage({
           </button>
           <button
             onClick={() => router.push("/dashboard/learner")}
-            className="mt-3 w-full text-sm text-gray-500 hover:text-gray-700"
+            className="mt-3 w-full text-sm text-slate-500 hover:text-slate-700"
           >
             Skip
           </button>
@@ -299,13 +298,13 @@ export default function CallRoomPage({
   }
 
   return (
-    <div className="flex h-screen flex-col bg-gray-900">
+    <div className="flex h-screen flex-col bg-slate-900">
       {/* Top Bar */}
-      <div className="flex items-center justify-between border-b border-gray-700 bg-gray-800 px-4 py-2">
+      <div className="flex items-center justify-between border-b border-slate-700 bg-slate-800 px-4 py-2">
         <div className="flex items-center gap-3">
           <span className="text-sm font-medium text-white">SpeakSpace</span>
           <span className="h-2 w-2 rounded-full bg-green-400" />
-          <span className="text-sm text-gray-400">Live</span>
+          <span className="text-sm text-slate-400">Live</span>
         </div>
         <button
           onClick={endSession}
@@ -328,13 +327,13 @@ export default function CallRoomPage({
         </div>
 
         {/* Right Sidebar */}
-        <div className="flex w-80 flex-col border-l border-gray-700 bg-gray-800">
+        <div className="flex w-80 flex-col border-l border-slate-700 bg-slate-800">
           {/* Speaker-only Panel */}
           {isSpeaker && (
-            <div className="border-b border-gray-700">
+            <div className="border-b border-slate-700">
               <button
                 onClick={() => setNotesOpen(!notesOpen)}
-                className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-gray-300 hover:text-white"
+                className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-slate-300 hover:text-white"
               >
                 <span>Speaker Notes</span>
                 <span>{notesOpen ? "▼" : "▶"}</span>
@@ -343,25 +342,25 @@ export default function CallRoomPage({
                 <div className="px-4 pb-4 space-y-3">
                   {/* Learner info */}
                   {learnerProfiles.map((lp) => (
-                    <div key={lp.uid} className="rounded-lg bg-gray-700/50 p-3">
+                    <div key={lp.uid} className="rounded-lg bg-slate-700/50 p-3">
                       <p className="text-sm font-medium text-teal-400">{lp.displayName}</p>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-slate-400">
                         Level: {lp.level ? LEVELS[lp.level as LevelCode] : "Unknown"}
                       </p>
                     </div>
                   ))}
                   {/* Topic prompts */}
                   {topic && (
-                    <div className="rounded-lg bg-gray-700/50 p-3">
+                    <div className="rounded-lg bg-slate-700/50 p-3">
                       <p className="mb-1 text-xs font-medium text-teal-400">{topic.title}</p>
                       {topic.promptQuestions?.map((q, i) => (
-                        <p key={i} className="text-xs text-gray-300">• {q}</p>
+                        <p key={i} className="text-xs text-slate-300">• {q}</p>
                       ))}
                       {topic.vocabularyHints?.length > 0 && (
                         <div className="mt-2">
                           <p className="text-xs font-medium text-teal-400">Vocabulary</p>
                           {topic.vocabularyHints.map((v, i) => (
-                            <span key={i} className="mr-1 inline-block rounded bg-gray-600 px-1.5 py-0.5 text-xs text-gray-200">
+                            <span key={i} className="mr-1 inline-block rounded bg-slate-600 px-1.5 py-0.5 text-xs text-slate-200">
                               {v}
                             </span>
                           ))}
@@ -375,7 +374,7 @@ export default function CallRoomPage({
                     onChange={(e) => setSpeakerNotes(e.target.value)}
                     placeholder="Your private notes..."
                     rows={3}
-                    className="w-full rounded-lg bg-gray-700 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    className="w-full rounded-lg bg-slate-700 px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
                   />
                 </div>
               )}
@@ -385,7 +384,7 @@ export default function CallRoomPage({
           {/* Chat */}
           <button
             onClick={() => setChatOpen(!chatOpen)}
-            className="flex w-full items-center justify-between border-b border-gray-700 px-4 py-3 text-sm font-medium text-gray-300 hover:text-white"
+            className="flex w-full items-center justify-between border-b border-slate-700 px-4 py-3 text-sm font-medium text-slate-300 hover:text-white"
           >
             <span>Chat</span>
             <span>{chatOpen ? "▼" : "▶"}</span>
@@ -399,7 +398,7 @@ export default function CallRoomPage({
                     className={`rounded-lg px-3 py-2 text-sm ${
                       m.senderId === user?.uid
                         ? "ml-auto bg-teal-600 text-white"
-                        : "bg-gray-700 text-gray-200"
+                        : "bg-slate-700 text-slate-200"
                     } max-w-[85%]`}
                   >
                     {m.text}
@@ -407,14 +406,14 @@ export default function CallRoomPage({
                 ))}
                 <div ref={chatEndRef} />
               </div>
-              <form onSubmit={sendMessage} className="border-t border-gray-700 p-3">
+              <form onSubmit={sendMessage} className="border-t border-slate-700 p-3">
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="Type a message..."
-                    className="flex-1 rounded-lg bg-gray-700 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    className="flex-1 rounded-lg bg-slate-700 px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
                   />
                   <button
                     type="submit"

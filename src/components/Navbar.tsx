@@ -25,15 +25,21 @@ export default function Navbar() {
       : "/dashboard/admin";
 
   return (
-    <nav className="flex items-center justify-between border-b border-teal-100 bg-white px-6 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+    <nav className="flex items-center justify-between border-b border-slate-200 bg-white/80 px-6 py-3 shadow-sm backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/80">
       <div className="flex items-center gap-3">
-        <Link href={userProfile ? `/dashboard/${userProfile.role}` : "/"}>
-          <h1 className="text-xl font-bold text-teal-700 hover:text-teal-800 dark:text-teal-400 dark:hover:text-teal-300">
+        <Link
+          href={userProfile ? `/dashboard/${userProfile.role}` : "/"}
+          className="group flex items-center gap-2"
+        >
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500 font-bold text-white shadow-md shadow-teal-500/30 transition group-hover:shadow-teal-400/50">
+            S
+          </div>
+          <h1 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
             SpeakSpace
           </h1>
         </Link>
         {userProfile && (
-          <span className="rounded-full bg-teal-100 px-3 py-1 text-xs font-medium text-teal-700 capitalize dark:bg-teal-900/40 dark:text-teal-300">
+          <span className="rounded-full bg-teal-100 px-3 py-1 text-xs font-medium capitalize text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
             {userProfile.role}
           </span>
         )}
@@ -77,7 +83,7 @@ export default function Navbar() {
         )}
         <button
           onClick={handleLogout}
-          className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800"
+          className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
         >
           Log out
         </button>

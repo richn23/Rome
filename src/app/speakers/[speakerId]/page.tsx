@@ -12,8 +12,6 @@ import {
   orderBy,
   onSnapshot,
   getDocs,
-  addDoc,
-  updateDoc,
   runTransaction,
   serverTimestamp,
   setDoc,
@@ -23,7 +21,7 @@ import {
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import RouteGuard from "@/components/RouteGuard";
-import { AvailabilitySlot, LEVELS, Rating, UserProfile } from "@/types";
+import { AvailabilitySlot, Rating, UserProfile } from "@/types";
 import toast from "react-hot-toast";
 
 function formatDate(ts: Timestamp) {
@@ -148,8 +146,8 @@ function SpeakerProfileContent({ speakerId }: { speakerId: string }) {
         tx.update(slotRef, { status: "booked", bookingId: bookingRef.id });
       });
       toast.success("Slot booked");
-    } catch (err: any) {
-      toast.error(err.message || "Could not book");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not book");
     } finally {
       setBooking(false);
     }
@@ -167,7 +165,7 @@ function SpeakerProfileContent({ speakerId }: { speakerId: string }) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-10 text-center">
         <p className="mb-4 text-slate-600 dark:text-slate-300">Speaker not found.</p>
-        <Link href="/dashboard/learner" className="text-sm font-medium text-teal-700 dark:text-teal-300 hover:text-teal-800 dark:text-teal-300">
+        <Link href="/dashboard/learner" className="text-sm font-medium text-teal-700 dark:text-teal-300 hover:text-teal-800 dark:hover:text-teal-200">
           Back to dashboard
         </Link>
       </div>
@@ -181,7 +179,6 @@ function SpeakerProfileContent({ speakerId }: { speakerId: string }) {
     return acc;
   }, {});
 
-  const levelName = speaker.level ? LEVELS[speaker.level] : null;
   const statusColour =
     speaker.status === "online"
       ? "bg-green-400"
@@ -193,7 +190,7 @@ function SpeakerProfileContent({ speakerId }: { speakerId: string }) {
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
       <Link
         href="/dashboard/learner"
-        className="inline-block text-sm font-medium text-teal-700 dark:text-teal-300 hover:text-teal-800 dark:text-teal-300"
+        className="inline-block text-sm font-medium text-teal-700 dark:text-teal-300 hover:text-teal-800 dark:hover:text-teal-200"
       >
         ← Back to dashboard
       </Link>
@@ -232,7 +229,7 @@ function SpeakerProfileContent({ speakerId }: { speakerId: string }) {
               </button>
             </div>
             {speaker.nativeLanguage && (
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">Native {speaker.nativeLanguage} speaker</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Native {speaker.nativeLanguage} speaker</p>
             )}
 
             <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-slate-600 dark:text-slate-300">
@@ -276,14 +273,14 @@ function SpeakerProfileContent({ speakerId }: { speakerId: string }) {
       <div className="rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 p-6">
         <h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-slate-100">Upcoming slots</h2>
         {Object.keys(groupedSlots).length === 0 ? (
-          <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 dark:bg-slate-900/60 p-6 text-center text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
+          <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 dark:bg-slate-900/60 p-6 text-center text-sm text-slate-500 dark:text-slate-400">
             No upcoming slots published. Check back soon or book now if they&apos;re online.
           </p>
         ) : (
           <div className="space-y-5">
             {Object.entries(groupedSlots).map(([day, ds]) => (
               <div key={day}>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   {day}
                 </p>
                 <div className="flex flex-wrap gap-2">

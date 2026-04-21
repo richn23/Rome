@@ -10,7 +10,6 @@ import {
   updateDoc,
   addDoc,
   serverTimestamp,
-  where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -87,17 +86,28 @@ function AdminDashboardContent() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl">
-      <h2 className="mb-6 text-2xl font-bold text-gray-900 dark:text-slate-100">Admin Dashboard</h2>
+    <div className="mx-auto max-w-6xl space-y-6">
+      {/* Hero banner */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 text-white shadow-xl md:p-10">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-teal-400/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-10 -left-10 h-56 w-56 rounded-full bg-cyan-400/15 blur-3xl" />
+        <div className="relative z-10">
+          <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-teal-300">Admin</p>
+          <h2 className="text-3xl font-bold md:text-4xl">Dashboard</h2>
+          <p className="mt-3 max-w-lg text-slate-300">
+            Manage users, topics, and session activity.
+          </p>
+        </div>
+      </div>
 
       {/* Tabs */}
-      <div className="mb-6 flex gap-1 rounded-lg bg-gray-100 dark:bg-slate-800 p-1">
+      <div className="flex gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
         {(["users", "topics", "sessions"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex-1 rounded-md px-4 py-2 text-sm font-medium capitalize transition ${
-              tab === t ? "bg-white dark:bg-slate-900 text-teal-700 dark:text-teal-300 shadow-sm" : "text-gray-500 dark:text-slate-400 hover:text-gray-700"
+            className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium capitalize transition ${
+              tab === t ? "bg-white dark:bg-slate-900 text-teal-700 dark:text-teal-300 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
             }`}
           >
             {t}
@@ -113,33 +123,33 @@ function AdminDashboardContent() {
             placeholder="Search users..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="mb-4 w-full rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-3 text-gray-900 dark:text-slate-100 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none"
+            className="mb-4 w-full rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-3 text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/40 focus:outline-none"
           />
-          <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
             <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 dark:bg-slate-950">
+              <thead className="bg-slate-50 dark:bg-slate-950">
                 <tr>
-                  <th className="px-4 py-3 font-medium text-gray-600 dark:text-slate-300">Name</th>
-                  <th className="px-4 py-3 font-medium text-gray-600 dark:text-slate-300">Email</th>
-                  <th className="px-4 py-3 font-medium text-gray-600 dark:text-slate-300">Role</th>
-                  <th className="px-4 py-3 font-medium text-gray-600 dark:text-slate-300">Level</th>
-                  <th className="px-4 py-3 font-medium text-gray-600 dark:text-slate-300">Status</th>
+                  <th className="px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Name</th>
+                  <th className="px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Email</th>
+                  <th className="px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Role</th>
+                  <th className="px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Level</th>
+                  <th className="px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-slate-100">
                 {filteredUsers.map((u) => (
                   <tr key={u.uid}>
-                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-slate-100">{u.displayName}</td>
-                    <td className="px-4 py-3 text-gray-500 dark:text-slate-400">{u.email}</td>
+                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{u.displayName}</td>
+                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{u.email}</td>
                     <td className="px-4 py-3">
                       <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-700 dark:text-teal-300 capitalize">
                         {u.role}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-500 dark:text-slate-400">
+                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
                       {u.level ? LEVELS[u.level as LevelCode] : "—"}
                     </td>
-                    <td className="px-4 py-3 text-gray-500 dark:text-slate-400 capitalize">{u.status ?? "—"}</td>
+                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400 capitalize">{u.status ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -158,19 +168,19 @@ function AdminDashboardContent() {
             {showTopicForm ? "Cancel" : "+ New Topic"}
           </button>
           {showTopicForm && (
-            <form onSubmit={createTopic} className="mb-6 rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-4">
+            <form onSubmit={createTopic} className="mb-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-4">
               <input
                 placeholder="Topic title"
                 value={topicTitle}
                 onChange={(e) => setTopicTitle(e.target.value)}
                 required
-                className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-2 text-gray-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
+                className="block w-full rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-2 text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
               />
               <div className="grid grid-cols-2 gap-4">
                 <select
                   value={topicCategory}
                   onChange={(e) => setTopicCategory(e.target.value as TopicCategory)}
-                  className="rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-2 text-gray-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
+                  className="rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-2 text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
                 >
                   <option value="everyday">Everyday</option>
                   <option value="travel">Travel</option>
@@ -180,7 +190,7 @@ function AdminDashboardContent() {
                 <select
                   value={topicLevel}
                   onChange={(e) => setTopicLevel(e.target.value as LevelCode)}
-                  className="rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-2 text-gray-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
+                  className="rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-2 text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
                 >
                   {Object.entries(LEVELS).map(([code, name]) => (
                     <option key={code} value={code}>{name}</option>
@@ -192,14 +202,14 @@ function AdminDashboardContent() {
                 value={topicQuestions}
                 onChange={(e) => setTopicQuestions(e.target.value)}
                 rows={3}
-                className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-2 text-gray-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
+                className="block w-full rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-2 text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
               />
               <textarea
                 placeholder="Vocabulary hints (one per line)"
                 value={topicVocab}
                 onChange={(e) => setTopicVocab(e.target.value)}
                 rows={3}
-                className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-2 text-gray-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
+                className="block w-full rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-2 text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
               />
               <button
                 type="submit"
@@ -214,12 +224,12 @@ function AdminDashboardContent() {
               <div
                 key={t.topicId}
                 className={`flex items-center justify-between rounded-xl border bg-white dark:bg-slate-900 p-4 ${
-                  t.isActive ? "border-gray-200 dark:border-slate-800" : "border-gray-200 dark:border-slate-800 opacity-50"
+                  t.isActive ? "border-slate-200 dark:border-slate-800" : "border-slate-200 dark:border-slate-800 opacity-50"
                 }`}
               >
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-slate-100">{t.title}</p>
-                  <p className="text-sm text-gray-500 dark:text-slate-400">
+                  <p className="font-medium text-slate-900 dark:text-slate-100">{t.title}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
                     {t.category} · {LEVELS[t.level as LevelCode]} · {t.promptQuestions?.length ?? 0} questions
                   </p>
                 </div>
@@ -227,7 +237,7 @@ function AdminDashboardContent() {
                   onClick={() => toggleTopicActive(t)}
                   className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
                     t.isActive
-                      ? "border border-gray-300 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 dark:bg-slate-800"
+                      ? "border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 dark:bg-slate-800"
                       : "bg-teal-600 text-white hover:bg-teal-700"
                   }`}
                 >
@@ -241,31 +251,31 @@ function AdminDashboardContent() {
 
       {/* Sessions Tab */}
       {tab === "sessions" && (
-        <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
           <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 dark:bg-slate-950">
+            <thead className="bg-slate-50 dark:bg-slate-950">
               <tr>
-                <th className="px-4 py-3 font-medium text-gray-600 dark:text-slate-300">Session</th>
-                <th className="px-4 py-3 font-medium text-gray-600 dark:text-slate-300">Status</th>
-                <th className="px-4 py-3 font-medium text-gray-600 dark:text-slate-300">Duration</th>
-                <th className="px-4 py-3 font-medium text-gray-600 dark:text-slate-300">Amount</th>
+                <th className="px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Session</th>
+                <th className="px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Status</th>
+                <th className="px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Duration</th>
+                <th className="px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Amount</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-slate-100">
               {sessions.map((s) => (
                 <tr key={s.sessionId}>
-                  <td className="px-4 py-3 font-medium text-gray-900 dark:text-slate-100">#{s.sessionId.slice(0, 8)}</td>
+                  <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">#{s.sessionId.slice(0, 8)}</td>
                   <td className="px-4 py-3">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
                       s.status === "active" ? "bg-green-100 text-green-700" :
-                      s.status === "ended" ? "bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300" :
+                      s.status === "ended" ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300" :
                       "bg-yellow-100 text-yellow-700"
                     }`}>
                       {s.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-500 dark:text-slate-400">{s.durationMinutes ?? "—"} min</td>
-                  <td className="px-4 py-3 text-gray-500 dark:text-slate-400">${s.amountCharged?.toFixed(2) ?? "0.00"}</td>
+                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{s.durationMinutes ?? "—"} min</td>
+                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400">${s.amountCharged?.toFixed(2) ?? "0.00"}</td>
                 </tr>
               ))}
             </tbody>

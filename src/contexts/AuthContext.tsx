@@ -56,19 +56,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(() =>
     devBypass ? getDevBypassProfile(getDevBypassRole()) : null
   );
-  const [loading, setLoading] = useState(() => !devBypass);
+  const [loading, setLoading] = useState(() => !devBypass && authAvailable);
 
   useEffect(() => {
     if (devBypass) return;
-    if (!authAvailable) {
-      setLoading(false);
-      return;
-    }
+    if (!authAvailable) return;
     const authInstance = auth;
-    if (!authInstance) {
-      setLoading(false);
-      return;
-    }
+    if (!authInstance) return;
     const unsubscribe = onAuthStateChanged(authInstance, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
@@ -133,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       displayName,
       email,
       photoURL: "",
-      createdAt: serverTimestamp() as any,
+      createdAt: serverTimestamp() as unknown as UserProfile["createdAt"],
       ...(role === "learner" && level ? { level } : {}),
       ...(extras?.nativeLanguage ? { nativeLanguage: extras.nativeLanguage } : {}),
       ...(extras?.learningLanguage ? { learningLanguage: extras.learningLanguage } : {}),
@@ -177,7 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       displayName: cred.user.displayName || "New User",
       email: cred.user.email || "",
       photoURL: cred.user.photoURL || "",
-      createdAt: serverTimestamp() as any,
+      createdAt: serverTimestamp() as unknown as UserProfile["createdAt"],
       ...(role === "learner" ? { level } : {}),
       ...(role === "speaker"
         ? { status: "offline" as const, hourlyRate: 15, rating: 0, totalSessions: 0 }

@@ -61,7 +61,7 @@ export default function Home() {
           </Link>
           <Link
             href="/signup"
-            className="rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 px-5 py-2 text-sm font-semibold text-slate-900 dark:text-slate-100 shadow-lg shadow-teal-500/30 transition hover:shadow-teal-400/50"
+            className="rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 px-5 py-2 text-sm font-semibold text-slate-900 shadow-lg shadow-teal-500/30 transition hover:shadow-teal-400/50"
           >
             Get started
           </Link>
@@ -124,7 +124,7 @@ export default function Home() {
           <div className="reveal flex flex-col gap-3 sm:flex-row">
             <Link
               href="/signup"
-              className="group rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 px-8 py-3.5 text-base font-semibold text-slate-900 dark:text-slate-100 shadow-xl shadow-teal-500/30 transition hover:shadow-teal-400/60"
+              className="group rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 px-8 py-3.5 text-base font-semibold text-slate-900 shadow-xl shadow-teal-500/30 transition hover:shadow-teal-400/60"
             >
               Start practicing
               <span className="ml-1 inline-block transition-transform group-hover:translate-x-1">→</span>
@@ -212,10 +212,10 @@ export default function Home() {
 
         <div className="relative z-10 mx-auto max-w-4xl">
           <p className="reveal mb-4 text-sm font-medium uppercase tracking-[0.25em] text-teal-300">
-            That's where we come in
+            That&apos;s where we come in
           </p>
           <h2 className="reveal mb-10 text-3xl font-bold leading-tight tracking-tight md:text-5xl">
-            Practice shouldn't be the{" "}
+            Practice shouldn&apos;t be the{" "}
             <span className="bg-gradient-to-r from-teal-300 to-cyan-300 bg-clip-text italic text-transparent">
               hard part.
             </span>
@@ -223,7 +223,7 @@ export default function Home() {
 
           <div className="reveal space-y-6 text-lg leading-relaxed text-slate-300 md:text-xl">
             <p>
-              It's not always easy to find practice — and it's harder to schedule it. We make this
+              It&apos;s not always easy to find practice — and it&apos;s harder to schedule it. We make this
               easy.
             </p>
             <p className="text-white">
@@ -254,7 +254,7 @@ export default function Home() {
           <div className="reveal mt-16 text-center">
             <Link
               href="/signup"
-              className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 px-10 py-4 text-base font-semibold text-slate-900 dark:text-slate-100 shadow-xl shadow-teal-500/30 transition hover:shadow-teal-400/60"
+              className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 px-10 py-4 text-base font-semibold text-slate-900 shadow-xl shadow-teal-500/30 transition hover:shadow-teal-400/60"
             >
               Start practicing today
               <span className="transition-transform group-hover:translate-x-1">→</span>

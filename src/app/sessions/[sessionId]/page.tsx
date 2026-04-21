@@ -74,7 +74,7 @@ function SessionDetailsContent({ sessionId }: { sessionId: string }) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-10 text-center">
         <p className="mb-4 text-slate-600 dark:text-slate-300">Session not found.</p>
-        <Link href="/dashboard/learner" className="text-sm font-medium text-teal-700 dark:text-teal-300 hover:text-teal-800 dark:text-teal-300">
+        <Link href="/dashboard/learner" className="text-sm font-medium text-teal-700 dark:text-teal-300 hover:text-teal-800 dark:hover:text-teal-200">
           Back to dashboard
         </Link>
       </div>
@@ -91,7 +91,7 @@ function SessionDetailsContent({ sessionId }: { sessionId: string }) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-10 text-center">
         <p className="mb-4 text-slate-600 dark:text-slate-300">You don&apos;t have access to this session.</p>
-        <Link href="/dashboard/learner" className="text-sm font-medium text-teal-700 dark:text-teal-300 hover:text-teal-800 dark:text-teal-300">
+        <Link href="/dashboard/learner" className="text-sm font-medium text-teal-700 dark:text-teal-300 hover:text-teal-800 dark:hover:text-teal-200">
           Back to dashboard
         </Link>
       </div>
@@ -103,7 +103,7 @@ function SessionDetailsContent({ sessionId }: { sessionId: string }) {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-6">
-      <Link href="/dashboard/learner" className="inline-block text-sm font-medium text-teal-700 dark:text-teal-300 hover:text-teal-800 dark:text-teal-300">
+      <Link href="/dashboard/learner" className="inline-block text-sm font-medium text-teal-700 dark:text-teal-300 hover:text-teal-800 dark:hover:text-teal-200">
         ← Back to dashboard
       </Link>
 
@@ -137,7 +137,7 @@ function SessionDetailsContent({ sessionId }: { sessionId: string }) {
           <div className="flex-1">
             <p className="font-semibold text-slate-900 dark:text-slate-100">{speaker.displayName}</p>
             {speaker.nativeLanguage && (
-              <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">Native {speaker.nativeLanguage} speaker</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Native {speaker.nativeLanguage} speaker</p>
             )}
           </div>
           <span className="text-sm text-teal-700 dark:text-teal-300">View profile →</span>
@@ -147,19 +147,19 @@ function SessionDetailsContent({ sessionId }: { sessionId: string }) {
       {/* Session facts */}
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 dark:text-slate-500">Duration</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Duration</p>
           <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
-            {session.durationMinutes ?? 0} <span className="text-base font-normal text-slate-500 dark:text-slate-400 dark:text-slate-500">min</span>
+            {session.durationMinutes ?? 0} <span className="text-base font-normal text-slate-500 dark:text-slate-400">min</span>
           </p>
         </div>
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 dark:text-slate-500">Started</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Started</p>
           <p className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-100">
             {startedAt ? startedAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : "-"}
           </p>
         </div>
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 dark:text-slate-500">Ended</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Ended</p>
           <p className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-100">
             {endedAt ? endedAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : "-"}
           </p>
@@ -169,7 +169,7 @@ function SessionDetailsContent({ sessionId }: { sessionId: string }) {
       {/* Topic */}
       {topic && (
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 dark:text-slate-500">Topic</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Topic</p>
           <h3 className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">{topic.title}</h3>
           {topic.promptQuestions?.length > 0 && (
             <div className="mt-3 space-y-1">
@@ -192,7 +192,7 @@ function SessionDetailsContent({ sessionId }: { sessionId: string }) {
 
       {/* Rating given */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 dark:text-slate-500">Your rating</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Your rating</p>
         {rating ? (
           <div className="mt-2">
             <p className="text-2xl text-amber-500">{"*".repeat(rating.score)}{"-".repeat(5 - rating.score)}</p>

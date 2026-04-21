@@ -19,11 +19,14 @@ import {
   documentId,
 } from "firebase/firestore";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import RouteGuard from "@/components/RouteGuard";
 import { UserProfile, Session, Topic, AvailabilitySlot, Booking, LevelSignal, LEVELS, LevelCode } from "@/types";
 import toast from "react-hot-toast";
+
+const LEVEL_CODES: readonly LevelCode[] = ["1a", "1b", "2a", "2b", "3a", "3b", "4a", "4b"];
 
 function SpeakerCard({
   speaker,
@@ -57,7 +60,7 @@ function SpeakerCard({
         <div className="flex-1">
           <h3 className="font-semibold text-slate-900 dark:text-slate-100">{speaker.displayName}</h3>
           {speaker.nativeLanguage && (
-            <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">{speaker.nativeLanguage}</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{speaker.nativeLanguage}</p>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -88,7 +91,7 @@ function SpeakerCard({
         </div>
       </div>
       <div className="mt-4 flex items-center justify-between">
-        <div className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
+        <div className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
           <span>${speaker.hourlyRate ?? 0}/hr</span>
           <span className="text-amber-400">
             {"*".repeat(Math.round(speaker.rating ?? 0))}
@@ -122,7 +125,7 @@ function TopicCard({ topic }: { topic: Topic }) {
       </div>
       <h3 className="mb-2 font-semibold text-slate-900 dark:text-slate-100">{topic.title}</h3>
       {topic.promptQuestions?.[0] && (
-        <p className="text-sm italic text-slate-500 dark:text-slate-400 dark:text-slate-500">&ldquo;{topic.promptQuestions[0]}&rdquo;</p>
+        <p className="text-sm italic text-slate-500 dark:text-slate-400">&ldquo;{topic.promptQuestions[0]}&rdquo;</p>
       )}
       <div className="mt-3 flex flex-wrap gap-1">
         {topic.vocabularyHints?.slice(0, 3).map((v) => (
@@ -137,6 +140,7 @@ function TopicCard({ topic }: { topic: Topic }) {
 
 function LearnerDashboardContent() {
   const { userProfile } = useAuth();
+  const router = useRouter();
   const [tab, setTab] = useState<"available" | "favourites" | "scheduled" | "history">("available");
   const [speakers, setSpeakers] = useState<UserProfile[]>([]);
   const [history, setHistory] = useState<Session[]>([]);
@@ -153,7 +157,7 @@ function LearnerDashboardContent() {
   const [bookingSpeakers, setBookingSpeakers] = useState<Record<string, UserProfile>>({});
   /* Favourites */
   const [favouriteIds, setFavouriteIds] = useState<string[]>([]);
-  const [favouriteSpeakers, setFavouriteSpeakers] = useState<UserProfile[]>([]);
+  const [favouriteSpeakerMap, setFavouriteSpeakerMap] = useState<Record<string, UserProfile>>({});
   const prevFavouriteStatuses = useRef<Record<string, string | undefined>>({});
   /* Level signals received */
   const [levelSignals, setLevelSignals] = useState<LevelSignal[]>([]);
@@ -272,35 +276,38 @@ function LearnerDashboardContent() {
 
   /* Subscribe to full profiles of favourites (online/offline) */
   useEffect(() => {
-    if (favouriteIds.length === 0) {
-      setFavouriteSpeakers([]);
-      return;
-    }
+    if (favouriteIds.length === 0) return;
     // Firestore 'in' query limited to 10 ids
     const idsChunk = favouriteIds.slice(0, 10);
     const q = query(collection(db, "users"), where(documentId(), "in", idsChunk));
     const unsub = onSnapshot(q, (snap) => {
-      const arr: UserProfile[] = [];
-      snap.forEach((d) => arr.push(d.data() as UserProfile));
-      arr.sort((a, b) => {
+      const map: Record<string, UserProfile> = {};
+      snap.forEach((d) => {
+        const profile = d.data() as UserProfile;
+        map[profile.uid] = profile;
+
+        /* Detect online transitions */
+        const prev = prevFavouriteStatuses.current[profile.uid];
+        if (prev && prev !== "online" && profile.status === "online") {
+          toast(`${profile.displayName} just came online`, { icon: "💚", duration: 6000 });
+        }
+        prevFavouriteStatuses.current[profile.uid] = profile.status;
+      });
+      setFavouriteSpeakerMap(map);
+    });
+    return unsub;
+  }, [favouriteIds]);
+
+  const favouriteSpeakers = useMemo(() => {
+    return favouriteIds
+      .map((id) => favouriteSpeakerMap[id])
+      .filter((s): s is UserProfile => Boolean(s))
+      .sort((a, b) => {
         if (a.status === "online" && b.status !== "online") return -1;
         if (a.status !== "online" && b.status === "online") return 1;
         return (b.rating ?? 0) - (a.rating ?? 0);
       });
-
-      /* Detect online transitions */
-      arr.forEach((s) => {
-        const prev = prevFavouriteStatuses.current[s.uid];
-        if (prev && prev !== "online" && s.status === "online") {
-          toast(`${s.displayName} just came online`, { icon: "💚", duration: 6000 });
-        }
-        prevFavouriteStatuses.current[s.uid] = s.status;
-      });
-
-      setFavouriteSpeakers(arr);
-    });
-    return unsub;
-  }, [favouriteIds]);
+  }, [favouriteIds, favouriteSpeakerMap]);
 
   const toggleFavourite = async (speaker: UserProfile) => {
     if (!userProfile) return;
@@ -357,8 +364,8 @@ function LearnerDashboardContent() {
         });
       }
       toast.success("Booking cancelled");
-    } catch (err: any) {
-      toast.error(err.message || "Could not cancel");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not cancel");
     }
   };
 
@@ -430,13 +437,11 @@ function LearnerDashboardContent() {
     return { totalSessions, totalMinutes };
   }, [history]);
 
-  const levelCodes: LevelCode[] = ["1a", "1b", "2a", "2b", "3a", "3b", "4a", "4b"];
-
   /* Level suggestion based on signals from different speakers */
+  const userLevel = userProfile?.level;
   const levelSuggestion = useMemo(() => {
-    if (!userProfile?.level) return null;
-    const currentLevel = userProfile.level;
-    const signalsAtCurrent = levelSignals.filter((s) => s.atLevel === currentLevel);
+    if (!userLevel) return null;
+    const signalsAtCurrent = levelSignals.filter((s) => s.atLevel === userLevel);
 
     const tooEasySpeakers = new Set(
       signalsAtCurrent.filter((s) => s.signalType === "too_easy").map((s) => s.speakerId)
@@ -445,16 +450,16 @@ function LearnerDashboardContent() {
       signalsAtCurrent.filter((s) => s.signalType === "too_hard").map((s) => s.speakerId)
     );
 
-    const currentIdx = levelCodes.indexOf(currentLevel);
+    const currentIdx = LEVEL_CODES.indexOf(userLevel);
 
-    if (tooEasySpeakers.size >= 3 && currentIdx < levelCodes.length - 1) {
-      return { direction: "up" as const, count: tooEasySpeakers.size, nextLevel: levelCodes[currentIdx + 1] };
+    if (tooEasySpeakers.size >= 3 && currentIdx < LEVEL_CODES.length - 1) {
+      return { direction: "up" as const, count: tooEasySpeakers.size, nextLevel: LEVEL_CODES[currentIdx + 1] };
     }
     if (tooHardSpeakers.size >= 3 && currentIdx > 0) {
-      return { direction: "down" as const, count: tooHardSpeakers.size, nextLevel: levelCodes[currentIdx - 1] };
+      return { direction: "down" as const, count: tooHardSpeakers.size, nextLevel: LEVEL_CODES[currentIdx - 1] };
     }
     return null;
-  }, [levelSignals, userProfile?.level]);
+  }, [levelSignals, userLevel]);
 
   const handleAcceptLevelChange = async () => {
     if (!userProfile || !levelSuggestion) return;
@@ -473,7 +478,7 @@ function LearnerDashboardContent() {
   };
 
   const handleBook = (speaker: UserProfile) => {
-    window.location.href = `/booking/new?speakerId=${speaker.uid}`;
+    router.push(`/booking/new?speakerId=${speaker.uid}`);
   };
 
   // Book a scheduled slot (auto-confirm path). Uses a transaction so two
@@ -533,7 +538,7 @@ function LearnerDashboardContent() {
       )}
 
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 text-white shadow-xl md:p-10">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-teal-50 dark:bg-teal-900/300/20 blur-3xl" />
+        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-teal-400/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-10 -left-10 h-56 w-56 rounded-full bg-cyan-400/15 blur-3xl" />
         <div className="relative z-10">
           <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-teal-300">Welcome back</p>
@@ -547,8 +552,8 @@ function LearnerDashboardContent() {
                 onClick={handleAcceptLevelChange}
                 className={`rounded-full px-4 py-1.5 text-sm font-semibold shadow-sm transition hover:shadow-md ${
                   levelSuggestion.direction === "up"
-                    ? "bg-gradient-to-r from-teal-400 to-cyan-400 text-slate-900 dark:text-slate-100"
-                    : "bg-amber-100 text-amber-900 dark:text-amber-200"
+                    ? "bg-gradient-to-r from-teal-400 to-cyan-400 text-slate-900"
+                    : "bg-amber-100 text-amber-900"
                 }`}
               >
                 {levelSuggestion.direction === "up"
@@ -562,12 +567,12 @@ function LearnerDashboardContent() {
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 dark:text-slate-500">Sessions</p>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Sessions</p>
           <p className="mt-1 text-3xl font-bold text-slate-900 dark:text-slate-100">{stats.totalSessions}</p>
           <p className="text-xs text-slate-400 dark:text-slate-500">conversations so far</p>
         </div>
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 dark:text-slate-500">Minutes practised</p>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Minutes practised</p>
           <p className="mt-1 text-3xl font-bold text-slate-900 dark:text-slate-100">{stats.totalMinutes}</p>
           <p className="text-xs text-slate-400 dark:text-slate-500">keep going!</p>
         </div>
@@ -588,7 +593,7 @@ function LearnerDashboardContent() {
               <p className="text-sm font-medium uppercase tracking-[0.15em] text-teal-600 dark:text-teal-400">Upcoming</p>
               <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Your bookings</h3>
             </div>
-            <span className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">{myBookings.length} scheduled</span>
+            <span className="text-sm text-slate-500 dark:text-slate-400">{myBookings.length} scheduled</span>
           </div>
           <div className="space-y-3">
             {myBookings.map((b) => {
@@ -620,7 +625,7 @@ function LearnerDashboardContent() {
                       <p className="font-semibold text-slate-900 dark:text-slate-100">
                         {sp?.displayName ?? "Speaker"}
                       </p>
-                      <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
                         {when
                           ? when.toLocaleString(undefined, {
                               weekday: "short",
@@ -678,7 +683,7 @@ function LearnerDashboardContent() {
           <button
             onClick={() => setTab("available")}
             className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition ${
-              tab === "available" ? "bg-white text-teal-700 dark:text-teal-300 shadow-sm" : "text-slate-500 dark:text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-200"
+              tab === "available" ? "bg-white text-teal-700 dark:text-teal-300 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
             }`}
           >
             Available Now
@@ -686,7 +691,7 @@ function LearnerDashboardContent() {
           <button
             onClick={() => setTab("favourites")}
             className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition ${
-              tab === "favourites" ? "bg-white text-teal-700 dark:text-teal-300 shadow-sm" : "text-slate-500 dark:text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-200"
+              tab === "favourites" ? "bg-white text-teal-700 dark:text-teal-300 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
             }`}
           >
             Favourites{favouriteIds.length > 0 && (
@@ -696,7 +701,7 @@ function LearnerDashboardContent() {
           <button
             onClick={() => setTab("scheduled")}
             className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition ${
-              tab === "scheduled" ? "bg-white text-teal-700 dark:text-teal-300 shadow-sm" : "text-slate-500 dark:text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-200"
+              tab === "scheduled" ? "bg-white text-teal-700 dark:text-teal-300 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
             }`}
           >
             Scheduled
@@ -704,7 +709,7 @@ function LearnerDashboardContent() {
           <button
             onClick={() => setTab("history")}
             className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition ${
-              tab === "history" ? "bg-white text-teal-700 dark:text-teal-300 shadow-sm" : "text-slate-500 dark:text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-200"
+              tab === "history" ? "bg-white text-teal-700 dark:text-teal-300 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
             }`}
           >
             History
@@ -756,13 +761,13 @@ function LearnerDashboardContent() {
                 </select>
               </div>
               {filtersActive && (
-                <div className="mt-3 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                <div className="mt-3 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                   <span>
                     {filteredSpeakers.length} of {speakers.length} speakers match
                   </span>
                   <button
                     onClick={clearFilters}
-                    className="font-medium text-teal-700 dark:text-teal-300 hover:text-teal-800 dark:text-teal-300"
+                    className="font-medium text-teal-700 dark:text-teal-300 hover:text-teal-800 dark:hover:text-teal-200"
                   >
                     Clear filters
                   </button>
@@ -773,14 +778,14 @@ function LearnerDashboardContent() {
             {speakers.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 py-12 px-6 text-center">
                 <h3 className="mb-1 font-semibold text-slate-700 dark:text-slate-200">No speakers online right now</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">Check back soon &mdash; or browse topics below while you wait.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Check back soon &mdash; or browse topics below while you wait.</p>
               </div>
             ) : filteredSpeakers.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 py-12 px-6 text-center">
                 <h3 className="mb-1 font-semibold text-slate-700 dark:text-slate-200">No speakers match your filters</h3>
                 <button
                   onClick={clearFilters}
-                  className="mt-2 text-sm font-medium text-teal-700 dark:text-teal-300 hover:text-teal-800 dark:text-teal-300"
+                  className="mt-2 text-sm font-medium text-teal-700 dark:text-teal-300 hover:text-teal-800 dark:hover:text-teal-200"
                 >
                   Clear filters
                 </button>
@@ -806,7 +811,7 @@ function LearnerDashboardContent() {
             {favouriteSpeakers.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 py-12 px-6 text-center">
                 <h3 className="mb-1 font-semibold text-slate-700 dark:text-slate-200">No favourites yet</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
                   Tap the heart on a speaker to save them. We&apos;ll let you know when they come online.
                 </p>
               </div>
@@ -831,7 +836,7 @@ function LearnerDashboardContent() {
             {slots.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 py-12 px-6 text-center">
                 <h3 className="mb-1 font-semibold text-slate-700 dark:text-slate-200">No scheduled slots yet</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">When speakers publish their hours, you&apos;ll see bookable slots here.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">When speakers publish their hours, you&apos;ll see bookable slots here.</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -845,7 +850,7 @@ function LearnerDashboardContent() {
                     }, {} as Record<string, AvailabilitySlot[]>)
                 ).map(([day, ds]) => (
                   <div key={day}>
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 dark:text-slate-500">{day}</p>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{day}</p>
                     <div className="space-y-2">
                       {ds.map((s) => {
                         const sp = slotSpeakers[s.speakerId];
@@ -857,7 +862,7 @@ function LearnerDashboardContent() {
                               </div>
                               <div>
                                 <p className="font-medium text-slate-900 dark:text-slate-100">{sp?.displayName ?? "Speaker"}</p>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                                <p className="text-sm text-slate-500 dark:text-slate-400">
                                   {s.scheduledFor.toDate().toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
                                   {sp?.nativeLanguage && ` - ${sp.nativeLanguage}`}
                                   {sp?.hourlyRate ? ` - $${sp.hourlyRate}/hr` : ""}
@@ -884,7 +889,7 @@ function LearnerDashboardContent() {
         {tab === "history" && (
           <div>
             {history.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 py-12 px-6 text-center text-slate-500 dark:text-slate-400 dark:text-slate-500">
+              <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 py-12 px-6 text-center text-slate-500 dark:text-slate-400">
                 <p>No sessions yet. Book your first conversation!</p>
               </div>
             ) : (
@@ -897,7 +902,7 @@ function LearnerDashboardContent() {
                   >
                     <div>
                       <p className="font-medium text-slate-900 dark:text-slate-100">Session #{s.sessionId.slice(0, 8)}</p>
-                      <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
                         {s.durationMinutes ?? 0} min &middot; {s.endedAt?.toDate?.()?.toLocaleDateString() ?? ""}
                       </p>
                     </div>
@@ -919,7 +924,7 @@ function LearnerDashboardContent() {
               <p className="text-sm font-medium uppercase tracking-[0.15em] text-teal-600 dark:text-teal-400">For your level</p>
               <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Topics to try</h3>
             </div>
-            <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">{topics.length} available</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{topics.length} available</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {topics.slice(0, 6).map((t) => (

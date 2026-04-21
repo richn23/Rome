@@ -13,9 +13,9 @@ import {
   getDoc,
   addDoc,
   serverTimestamp,
-  Timestamp,
 } from "firebase/firestore";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import RouteGuard from "@/components/RouteGuard";
@@ -24,6 +24,7 @@ import toast from "react-hot-toast";
 
 function SpeakerDashboardContent() {
   const { userProfile } = useAuth();
+  const router = useRouter();
   const [status, setStatus] = useState<SpeakerStatus>(userProfile?.status ?? "offline");
   const [pendingBookings, setPendingBookings] = useState<(Booking & { learnerProfile?: UserProfile })[]>([]);
   const [upcomingBookings, setUpcomingBookings] = useState<(Booking & { learnerProfile?: UserProfile })[]>([]);
@@ -36,11 +37,6 @@ function SpeakerDashboardContent() {
     const id = setInterval(() => setNowTick(Date.now()), 30_000);
     return () => clearInterval(id);
   }, []);
-
-  // Sync status from profile
-  useEffect(() => {
-    if (userProfile?.status) setStatus(userProfile.status);
-  }, [userProfile?.status]);
 
   // Toggle speaker status
   const handleStatusChange = async (newStatus: SpeakerStatus) => {
@@ -209,7 +205,7 @@ function SpeakerDashboardContent() {
     });
     await updateDoc(doc(db, "users", userProfile.uid), { status: "busy" });
     setStatus("busy");
-    window.location.href = `/call/${sessionRef.id}`;
+    router.push(`/call/${sessionRef.id}`);
   };
 
   const handleReject = async (booking: Booking) => {
@@ -230,8 +226,8 @@ function SpeakerDashboardContent() {
         });
       }
       toast.success("Session cancelled");
-    } catch (err: any) {
-      toast.error(err.message || "Could not cancel");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not cancel");
     }
   };
 
@@ -264,87 +260,92 @@ function SpeakerDashboardContent() {
     return total / ratings.length;
   }, [ratings, userProfile?.rating]);
 
-  const totalEarnings = earnings.all;
+  const firstName = userProfile?.displayName?.split(" ")[0] ?? "there";
 
   return (
-    <div className="mx-auto max-w-5xl">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">{userProfile?.displayName}</h2>
-          <p className="text-sm text-gray-500 dark:text-slate-400">Speaker Dashboard</p>
-          <div className="mt-2 flex flex-wrap gap-4 text-sm font-medium">
-            <Link
-              href="/dashboard/speaker/profile"
-              className="text-teal-700 dark:text-teal-300 hover:text-teal-800"
-            >
-              Edit profile &rarr;
-            </Link>
-            <Link
-              href="/dashboard/speaker/availability"
-              className="text-teal-700 dark:text-teal-300 hover:text-teal-800"
-            >
-              Manage availability &rarr;
-            </Link>
+    <div className="space-y-6">
+      {/* Hero banner */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 text-white shadow-xl md:p-10">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-teal-400/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-10 -left-10 h-56 w-56 rounded-full bg-cyan-400/15 blur-3xl" />
+        <div className="relative z-10 flex flex-wrap items-start justify-between gap-6">
+          <div>
+            <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-teal-300">Speaker</p>
+            <h2 className="mb-4 text-3xl font-bold md:text-4xl">Hi {firstName}</h2>
+            <div className="flex flex-wrap gap-4 text-sm font-medium">
+              <Link
+                href="/dashboard/speaker/profile"
+                className="rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-slate-200 backdrop-blur-sm transition hover:bg-white/10 hover:text-white"
+              >
+                Edit profile &rarr;
+              </Link>
+              <Link
+                href="/dashboard/speaker/availability"
+                className="rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-slate-200 backdrop-blur-sm transition hover:bg-white/10 hover:text-white"
+              >
+                Manage availability &rarr;
+              </Link>
+            </div>
+            {userProfile?.awayMode && (
+              <span className="mt-3 inline-block rounded-full border border-amber-300/30 bg-amber-400/15 px-3 py-1 text-xs font-medium text-amber-200">
+                Away mode on — learners can&apos;t see you
+              </span>
+            )}
           </div>
-          {userProfile?.awayMode && (
-            <span className="mt-2 inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800">
-              Away mode on — learners can&apos;t see you
-            </span>
-          )}
-        </div>
-        {/* Status Toggle */}
-        <div className="flex gap-1 rounded-lg bg-gray-100 dark:bg-slate-800 p-1">
-          {(["online", "busy", "offline"] as SpeakerStatus[]).map((s) => (
-            <button
-              key={s}
-              onClick={() => handleStatusChange(s)}
-              className={`rounded-md px-4 py-2 text-sm font-medium capitalize transition ${
-                status === s
-                  ? s === "online"
-                    ? "bg-green-500 text-white shadow-sm"
-                    : s === "busy"
-                    ? "bg-yellow-500 text-white shadow-sm"
-                    : "bg-gray-400 text-white shadow-sm"
-                  : "text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-200"
-              }`}
-            >
-              {s}
-            </button>
-          ))}
+          {/* Status Toggle */}
+          <div className="flex gap-1 rounded-xl border border-white/10 bg-white/5 p-1 backdrop-blur-sm">
+            {(["online", "busy", "offline"] as SpeakerStatus[]).map((s) => (
+              <button
+                key={s}
+                onClick={() => handleStatusChange(s)}
+                className={`rounded-lg px-4 py-2 text-sm font-medium capitalize transition ${
+                  status === s
+                    ? s === "online"
+                      ? "bg-green-500 text-white shadow-sm"
+                      : s === "busy"
+                      ? "bg-yellow-500 text-white shadow-sm"
+                      : "bg-slate-500 text-white shadow-sm"
+                    : "text-slate-300 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">This week</p>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">This week</p>
           <p className="mt-1 text-2xl font-bold text-teal-600 dark:text-teal-400">${earnings.week.toFixed(2)}</p>
         </div>
-        <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">This month</p>
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">This month</p>
           <p className="mt-1 text-2xl font-bold text-teal-600 dark:text-teal-400">${earnings.month.toFixed(2)}</p>
         </div>
-        <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">All time</p>
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">All time</p>
           <p className="mt-1 text-2xl font-bold text-teal-600 dark:text-teal-400">${earnings.all.toFixed(2)}</p>
         </div>
-        <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Sessions</p>
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Sessions</p>
           <p className="mt-1 text-2xl font-bold text-teal-600 dark:text-teal-400">{history.length}</p>
         </div>
-        <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Rating</p>
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Rating</p>
           <p className="mt-1 text-2xl font-bold text-amber-500">
             {avgRating > 0 ? avgRating.toFixed(1) : "—"}
-            <span className="ml-1 text-sm text-gray-400 dark:text-slate-500">({ratings.length})</span>
+            <span className="ml-1 text-sm text-slate-400 dark:text-slate-500">({ratings.length})</span>
           </p>
         </div>
       </div>
 
       {/* Incoming Requests */}
-      <div className="mb-6">
+      <div>
         <div className="mb-3 flex items-center gap-2">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Incoming Requests</h3>
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Incoming Requests</h3>
           {pendingBookings.length > 0 && (
             <span className="rounded-full bg-teal-600 px-2 py-0.5 text-xs font-semibold text-white">
               {pendingBookings.length}
@@ -352,7 +353,7 @@ function SpeakerDashboardContent() {
           )}
         </div>
         {pendingBookings.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-300 dark:border-slate-700 py-10 text-center text-gray-400 dark:text-slate-500">
+          <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 py-10 text-center text-slate-400 dark:text-slate-500">
             No pending requests
           </div>
         ) : (
@@ -360,7 +361,7 @@ function SpeakerDashboardContent() {
             {pendingBookings.map((b) => (
               <div
                 key={b.bookingId}
-                className="flex items-center justify-between rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4"
+                className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4"
               >
                 <div className="flex items-center gap-3">
                   {b.learnerProfile?.photoURL ? (
@@ -376,10 +377,10 @@ function SpeakerDashboardContent() {
                     </div>
                   )}
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-slate-100">
+                    <p className="font-medium text-slate-900 dark:text-slate-100">
                       {b.learnerProfile?.displayName ?? "Learner"}
                     </p>
-                    <p className="text-sm text-gray-500 dark:text-slate-400">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
                       {b.learnerProfile?.level
                         ? LEVELS[b.learnerProfile.level as LevelCode]
                         : "Unknown level"}
@@ -402,7 +403,7 @@ function SpeakerDashboardContent() {
                   </button>
                   <button
                     onClick={() => handleReject(b)}
-                    className="rounded-lg border border-gray-300 dark:border-slate-700 px-4 py-2 text-sm font-medium text-gray-600 dark:text-slate-300 transition hover:bg-gray-100 dark:hover:bg-slate-800 dark:bg-slate-800"
+                    className="rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 transition hover:bg-slate-100 dark:hover:bg-slate-800"
                   >
                     Reject
                   </button>
@@ -415,8 +416,8 @@ function SpeakerDashboardContent() {
 
       {/* Upcoming Sessions */}
       {upcomingBookings.length > 0 && (
-        <div className="mb-6">
-          <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-slate-100">Upcoming Sessions</h3>
+        <div>
+          <h3 className="mb-3 text-lg font-semibold text-slate-900 dark:text-slate-100">Upcoming Sessions</h3>
           <div className="space-y-3">
             {upcomingBookings.map((b) => {
               const when = b.scheduledFor?.toDate?.();
@@ -427,7 +428,7 @@ function SpeakerDashboardContent() {
               return (
                 <div
                   key={b.bookingId}
-                  className="flex items-center justify-between rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4"
+                  className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4"
                 >
                   <div className="flex items-center gap-3">
                     {b.learnerProfile?.photoURL ? (
@@ -443,10 +444,10 @@ function SpeakerDashboardContent() {
                       </div>
                     )}
                     <div>
-                      <p className="font-medium text-gray-900 dark:text-slate-100">
+                      <p className="font-medium text-slate-900 dark:text-slate-100">
                         {b.learnerProfile?.displayName ?? "Learner"}
                       </p>
-                      <p className="text-sm text-gray-500 dark:text-slate-400">
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
                         {when?.toLocaleString(undefined, {
                           weekday: "short",
                           month: "short",
@@ -475,7 +476,7 @@ function SpeakerDashboardContent() {
                     )}
                     <button
                       onClick={() => handleCancelUpcoming(b)}
-                      className="rounded-lg border border-gray-300 dark:border-slate-700 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                      className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
                     >
                       Cancel
                     </button>
@@ -489,10 +490,10 @@ function SpeakerDashboardContent() {
 
       {/* Ratings Received */}
       {ratings.length > 0 && (
-        <div className="mb-6">
+        <div>
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Recent Reviews</h3>
-            <span className="text-sm text-gray-500 dark:text-slate-400">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Recent Reviews</h3>
+            <span className="text-sm text-slate-500 dark:text-slate-400">
               {avgRating.toFixed(1)} average
             </span>
           </div>
@@ -500,14 +501,14 @@ function SpeakerDashboardContent() {
             {ratings.slice(0, 5).map((r) => (
               <div
                 key={r.ratingId}
-                className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4"
+                className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4"
               >
                 <div className="flex items-center gap-2">
                   <span className="text-amber-500">
                     {"★".repeat(r.score)}
-                    <span className="text-gray-300">{"★".repeat(5 - r.score)}</span>
+                    <span className="text-slate-300">{"★".repeat(5 - r.score)}</span>
                   </span>
-                  <span className="text-xs text-gray-400 dark:text-slate-500">
+                  <span className="text-xs text-slate-400 dark:text-slate-500">
                     {r.createdAt?.toDate?.()?.toLocaleDateString() ?? ""}
                   </span>
                 </div>
@@ -522,22 +523,22 @@ function SpeakerDashboardContent() {
 
       {/* History */}
       <div>
-        <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-slate-100">Session History</h3>
+        <h3 className="mb-3 text-lg font-semibold text-slate-900 dark:text-slate-100">Session History</h3>
         {history.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-300 dark:border-slate-700 py-10 text-center text-gray-400 dark:text-slate-500">
+          <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 py-10 text-center text-slate-400 dark:text-slate-500">
             No sessions yet
           </div>
         ) : (
           <div className="space-y-3">
             {history.map((s) => (
-              <div key={s.sessionId} className="flex items-center justify-between rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+              <div key={s.sessionId} className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-slate-100">Session #{s.sessionId.slice(0, 8)}</p>
-                  <p className="text-sm text-gray-500 dark:text-slate-400">
+                  <p className="font-medium text-slate-900 dark:text-slate-100">Session #{s.sessionId.slice(0, 8)}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
                     {s.durationMinutes ?? 0} min · ${s.speakerPayout?.toFixed(2) ?? "0.00"}
                   </p>
                 </div>
-                <span className="text-sm text-gray-400 dark:text-slate-500">
+                <span className="text-sm text-slate-400 dark:text-slate-500">
                   {s.endedAt?.toDate?.()?.toLocaleDateString() ?? ""}
                 </span>
               </div>
@@ -552,7 +553,9 @@ function SpeakerDashboardContent() {
 export default function SpeakerDashboard() {
   return (
     <RouteGuard allowedRole="speaker">
-      <SpeakerDashboardContent />
+      <div className="mx-auto max-w-5xl px-4 py-6">
+        <SpeakerDashboardContent />
+      </div>
     </RouteGuard>
   );
 }

@@ -230,8 +230,8 @@ export default function SeedPage() {
 
       setDone(true);
       toast.success("Demo data seeded successfully!");
-    } catch (err: any) {
-      toast.error(err.message || "Seeding failed");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Seeding failed");
     } finally {
       setSeeding(false);
     }
