@@ -42,6 +42,9 @@ interface AuthContextType {
   ) => Promise<void>;
   loginWithGoogle: (role?: UserRole, level?: LevelCode) => Promise<void>;
   logout: () => Promise<void>;
+  /** Re-reads the current user's Firestore profile into state. Used after
+   *  direct doc mutations (e.g. promote-self-to-admin in /seed). */
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -200,8 +203,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserProfile(null);
   };
 
+  const refreshProfile = async () => {
+    if (devBypass) return;
+    const uid = user?.uid;
+    if (!uid) return;
+    const snap = await getDoc(doc(db, "users", uid));
+    if (snap.exists()) {
+      setUserProfile(snap.data() as UserProfile);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, userProfile, loading, login, signup, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, userProfile, loading, login, signup, loginWithGoogle, logout, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

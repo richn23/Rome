@@ -36,51 +36,197 @@
   --color-teal-700: var(--teal-700);
   --color-teal-800: var(--teal-800);
   --color-teal-900: var(--teal-900);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Type system — Fraunces display, Inter Tight sans body, JetBrains Mono. */
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-display: var(--font-display);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 
-/* Scroll-reveal animation */
+/* ==========================================================================
+   Motion vocabulary
+   A small named set used across the app. Adding new motion? Pick from here.
+   Each pattern respects prefers-reduced-motion (see bottom of file).
+   ========================================================================== */
+
+/* -- Legacy scroll-reveal kept for the landing page's older sections --- */
 @keyframes fadeUp {
-  from {
-    opacity: 0;
-    transform: translateY(24px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.reveal { opacity: 0; }
+.reveal.is-visible { animation: fadeUp 0.9s ease-out forwards; }
+
+/* 01 — Kinetic reveal. Each .kin word/letter starts blurred+offset and
+   snaps into place. Used on hero headlines. */
+.kin {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(22px);
+  filter: blur(6px);
+}
+.kin.in { animation: kin 0.9s cubic-bezier(.2,.8,.2,1) forwards; }
+@keyframes kin {
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
 }
 
-.reveal {
+/* 02 — Magnetic button. JS sets --mx/--my from cursor offset. */
+.magnetic {
+  transform: translate3d(var(--mx, 0), var(--my, 0), 0);
+  transition: transform 0.2s cubic-bezier(.2,.8,.2,1);
+}
+
+/* 03 — Breathing halo. Used on live/online indicators. Works on any
+   absolutely-positioned dot; pair with a solid dot on top. */
+@keyframes breathe {
+  0%   { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.55); }
+  70%  { box-shadow: 0 0 0 12px rgba(74, 222, 128, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+}
+.breathe { animation: breathe 2.4s ease-out infinite; }
+/* Teal variant for non-status "live" cues (e.g. count-up cards). */
+@keyframes breathe-teal {
+  0%   { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.55); }
+  70%  { box-shadow: 0 0 0 12px rgba(45, 212, 191, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0); }
+}
+.breathe-teal { animation: breathe-teal 2.4s ease-out infinite; }
+
+/* 04 — Gradient mesh. Replaces 3 static blobs with one slow-drifting
+   multi-colour mesh; adds a pink accent missing from the teal-only palette. */
+.mesh {
+  background:
+    radial-gradient(60% 60% at 20% 30%, rgba(45, 212, 191, 0.35), transparent 70%),
+    radial-gradient(50% 50% at 80% 20%, rgba(103, 232, 249, 0.28), transparent 70%),
+    radial-gradient(55% 55% at 60% 85%, rgba(244, 114, 182, 0.22), transparent 70%),
+    radial-gradient(40% 40% at 10% 80%, rgba(56, 189, 248, 0.2), transparent 70%);
+  filter: saturate(1.1);
+  animation: mesh-drift 22s ease-in-out infinite alternate;
+}
+@keyframes mesh-drift {
+  0%   { background-position: 0% 0%, 100% 0%, 50% 100%, 0% 100%; }
+  100% { background-position: 20% 10%, 80% 20%, 40% 80%, 10% 90%; }
+}
+
+/* Light-mode mesh: softer tones so the hero doesn't blow out in light mode.
+   Swap in .dark via the compound rule below. */
+.mesh-light {
+  background:
+    radial-gradient(60% 60% at 20% 30%, rgba(94, 234, 212, 0.35), transparent 70%),
+    radial-gradient(50% 50% at 80% 20%, rgba(125, 211, 252, 0.28), transparent 70%),
+    radial-gradient(55% 55% at 60% 85%, rgba(249, 168, 212, 0.22), transparent 70%),
+    radial-gradient(40% 40% at 10% 80%, rgba(186, 230, 253, 0.3),  transparent 70%);
+  filter: saturate(1.05);
+  animation: mesh-drift 22s ease-in-out infinite alternate;
+}
+
+/* 05 — Film grain. Subtle texture on dark sections. */
+.grain { position: relative; }
+.grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.4'/></svg>");
+  opacity: 0.15;
+  mix-blend-mode: overlay;
+}
+
+/* 06 — Soft dotted grid for dark atmospheric sections. */
+.grid-dots {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* 07 — Marquee (infinite slow scroll). Content must be duplicated inside the
+   track for a seamless loop. */
+.marquee {
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+}
+.marquee-track {
+  display: inline-flex;
+  gap: 3rem;
+  animation: marquee 32s linear infinite;
+  white-space: nowrap;
+}
+@keyframes marquee {
+  to { transform: translateX(-50%); }
+}
+
+/* 08 — Flourish underline. SVG path draws itself when .in is added. */
+.flourish path {
+  stroke-dasharray: 240;
+  stroke-dashoffset: 240;
+}
+.flourish.in path {
+  animation: draw 1.2s cubic-bezier(.6,.2,.2,1) forwards;
+  animation-delay: 0.5s;
+}
+@keyframes draw { to { stroke-dashoffset: 0; } }
+
+/* 09 — Count-up is driven entirely from JS (<CountUp> component). No CSS. */
+
+/* 10 — Heart burst. Particle emitter for favourite taps. */
+.heart-burst { position: relative; }
+.heart-burst .bit {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 9999px;
+  background: #f472b6;
   opacity: 0;
 }
-
-.reveal.is-visible {
-  animation: fadeUp 0.9s ease-out forwards;
+.heart-burst.on .bit { animation: heart-burst 0.7s ease-out forwards; }
+.heart-burst .bit:nth-child(1) { --bx: -18px; --by: -18px; }
+.heart-burst .bit:nth-child(2) { --bx:  18px; --by: -18px; }
+.heart-burst .bit:nth-child(3) { --bx: -22px; --by:   6px; }
+.heart-burst .bit:nth-child(4) { --bx:  22px; --by:   6px; }
+.heart-burst .bit:nth-child(5) { --bx:   0px; --by: -26px; }
+@keyframes heart-burst {
+  0%   { transform: translate(-50%, -50%) scale(0.5); opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--bx)), calc(-50% + var(--by))) scale(1); opacity: 0; }
 }
 
-/* Slow drifting background glow */
+/* ---- Legacy drift (still used by older hero blobs until retired) ---- */
 @keyframes drift {
-  0%, 100% {
-    transform: translate(0, 0) scale(1);
-  }
-  50% {
-    transform: translate(30px, -20px) scale(1.08);
-  }
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(30px, -20px) scale(1.08); }
 }
+.drift       { animation: drift 14s ease-in-out infinite; }
+.drift-delay { animation: drift 18s ease-in-out infinite; animation-delay: -6s; }
 
-.drift {
-  animation: drift 14s ease-in-out infinite;
-}
-
-.drift-delay {
-  animation: drift 18s ease-in-out infinite;
-  animation-delay: -6s;
+/* ==========================================================================
+   Reduced-motion guard. Anyone who's asked for less motion gets a static
+   interface — everything above degrades to "already in place".
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .kin,
+  .breathe,
+  .breathe-teal,
+  .mesh,
+  .mesh-light,
+  .marquee-track,
+  .flourish path,
+  .magnetic,
+  .drift,
+  .drift-delay,
+  .reveal,
+  .reveal.is-visible,
+  .heart-burst.on .bit {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+    stroke-dashoffset: 0 !important;
+  }
 }

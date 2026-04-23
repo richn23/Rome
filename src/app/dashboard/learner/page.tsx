@@ -24,10 +24,16 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import RouteGuard from "@/components/RouteGuard";
 import { UserProfile, Session, Topic, AvailabilitySlot, Booking, LevelSignal, LEVELS, LevelCode } from "@/types";
+import CountUp from "@/components/motion/CountUp";
 import toast from "react-hot-toast";
 
 const LEVEL_CODES: readonly LevelCode[] = ["1a", "1b", "2a", "2b", "3a", "3b", "4a", "4b"];
 
+/**
+ * Dense speaker card. Photo + name + mono price chip on one row; a compact
+ * meta line (language · rating · sessions); split footer (View profile + Book).
+ * Animated top border on hover; breathing halo on online avatars.
+ */
 function SpeakerCard({
   speaker,
   onBook,
@@ -39,79 +45,105 @@ function SpeakerCard({
   isFavourite?: boolean;
   onToggleFavourite?: (speaker: UserProfile) => void;
 }) {
+  const isOnline = speaker.status === "online";
+  const dotColour =
+    speaker.status === "online"
+      ? "bg-green-400"
+      : speaker.status === "busy"
+      ? "bg-amber-400"
+      : "bg-slate-400";
+  const rating = Math.round((speaker.rating ?? 0) * 10) / 10;
+
   return (
-    <Link
-      href={`/speakers/${speaker.uid}`}
-      className="block rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-    >
-      <div className="flex items-center gap-4">
-        {speaker.photoURL ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={speaker.photoURL}
-            alt=""
-            className="h-14 w-14 rounded-full object-cover ring-1 ring-teal-100"
-          />
-        ) : (
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 text-xl font-bold text-white shadow-sm">
-            {speaker.displayName.charAt(0).toUpperCase()}
-          </div>
-        )}
-        <div className="flex-1">
-          <h3 className="font-semibold text-slate-900 dark:text-slate-100">{speaker.displayName}</h3>
-          {speaker.nativeLanguage && (
-            <p className="text-sm text-slate-500 dark:text-slate-400">{speaker.nativeLanguage}</p>
+    <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-teal-400/40 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-teal-400/30">
+      {/* Animated top border — fades in on hover */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-teal-400 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+
+      <div className="flex items-center gap-3">
+        <div className="relative shrink-0">
+          {speaker.photoURL ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={speaker.photoURL}
+              alt=""
+              className="h-12 w-12 rounded-xl object-cover ring-1 ring-teal-100 dark:ring-teal-900/50"
+            />
+          ) : (
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400 to-cyan-500 text-lg font-bold text-white shadow-sm">
+              {speaker.displayName.charAt(0).toUpperCase()}
+            </div>
           )}
-        </div>
-        <div className="flex items-center gap-2">
-          {onToggleFavourite && (
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onToggleFavourite(speaker);
-              }}
-              title={isFavourite ? "Remove from favourites" : "Add to favourites"}
-              className={`text-lg leading-none transition ${
-                isFavourite ? "text-rose-500" : "text-slate-300 hover:text-rose-400"
-              }`}
-            >
-              {isFavourite ? "♥" : "♡"}
-            </button>
-          )}
+          {/* Status dot — breathes when online */}
           <span
-            className={`h-3 w-3 rounded-full ${
-              speaker.status === "online"
-                ? "bg-green-400"
-                : speaker.status === "busy"
-                ? "bg-yellow-400"
-                : "bg-slate-300"
+            className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white dark:border-slate-900 ${dotColour} ${
+              isOnline ? "breathe" : ""
             }`}
           />
         </div>
-      </div>
-      <div className="mt-4 flex items-center justify-between">
-        <div className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
-          <span>${speaker.hourlyRate ?? 0}/hr</span>
-          <span className="text-amber-400">
-            {"*".repeat(Math.round(speaker.rating ?? 0))}
-          </span>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <p className="truncate font-semibold text-slate-900 dark:text-slate-100">
+              {speaker.displayName}
+            </p>
+            {/* Mono price chip */}
+            <span className="shrink-0 rounded-full bg-teal-500/10 px-2 py-0.5 font-mono text-[11px] font-semibold text-teal-700 dark:text-teal-300">
+              ${speaker.hourlyRate ?? 0}/hr
+            </span>
+          </div>
+          <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+            {speaker.nativeLanguage ?? "—"}
+            {rating > 0 && (
+              <>
+                {" · "}
+                <span className="text-amber-500">★ {rating.toFixed(1)}</span>
+              </>
+            )}
+            {typeof speaker.totalSessions === "number" && speaker.totalSessions > 0 && (
+              <> · {speaker.totalSessions} sessions</>
+            )}
+          </p>
         </div>
-        {speaker.status === "online" ? (
+      </div>
+
+      {/* Footer: heart + View profile + Book */}
+      <div className="mt-4 flex items-center gap-2">
+        {onToggleFavourite && (
           <button
-            onClick={(e) => {
-              e.preventDefault();
-              onBook(speaker);
-            }}
-            className="rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
+            type="button"
+            onClick={() => onToggleFavourite(speaker)}
+            title={isFavourite ? "Remove from favourites" : "Add to favourites"}
+            aria-label={isFavourite ? "Remove from favourites" : "Add to favourites"}
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition ${
+              isFavourite
+                ? "border-rose-400/40 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20"
+                : "border-slate-200 bg-white text-slate-400 hover:border-rose-400/40 hover:text-rose-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-500"
+            }`}
+          >
+            <span className="text-sm leading-none">{isFavourite ? "♥" : "♡"}</span>
+          </button>
+        )}
+        <Link
+          href={`/speakers/${speaker.uid}`}
+          className="flex-1 rounded-lg border border-slate-200 bg-white py-2 text-center text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+        >
+          View profile
+        </Link>
+        {isOnline ? (
+          <button
+            type="button"
+            onClick={() => onBook(speaker)}
+            className="flex-1 rounded-lg bg-gradient-to-r from-teal-400 to-cyan-400 py-2 text-xs font-semibold text-slate-900 shadow-sm transition hover:shadow-[0_8px_24px_-8px_rgba(45,212,191,0.7)]"
           >
             Book
           </button>
         ) : (
-          <span className="text-sm text-slate-400 dark:text-slate-500 capitalize">{speaker.status}</span>
+          <span className="flex-1 rounded-lg border border-dashed border-slate-200 py-2 text-center text-xs font-medium capitalize text-slate-400 dark:border-slate-700 dark:text-slate-500">
+            {speaker.status}
+          </span>
         )}
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -585,12 +617,16 @@ function LearnerDashboardContent() {
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Sessions</p>
-          <p className="mt-1 text-3xl font-bold text-slate-900 dark:text-slate-100">{stats.totalSessions}</p>
+          <p className="mt-1 font-mono text-3xl font-semibold text-slate-900 dark:text-slate-100">
+            <CountUp to={stats.totalSessions} />
+          </p>
           <p className="text-xs text-slate-400 dark:text-slate-500">conversations so far</p>
         </div>
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Minutes practised</p>
-          <p className="mt-1 text-3xl font-bold text-slate-900 dark:text-slate-100">{stats.totalMinutes}</p>
+          <p className="mt-1 font-mono text-3xl font-semibold text-slate-900 dark:text-slate-100">
+            <CountUp to={stats.totalMinutes} />
+          </p>
           <p className="text-xs text-slate-400 dark:text-slate-500">keep going!</p>
         </div>
         <div className="rounded-2xl border border-teal-200 bg-gradient-to-br from-teal-50 to-cyan-50 p-5 dark:border-teal-900/60 dark:from-teal-950/60 dark:to-cyan-950/60">

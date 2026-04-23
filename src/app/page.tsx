@@ -4,11 +4,17 @@ import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
+import { useScrollReveal } from "@/components/motion/useScrollReveal";
+import MagneticButton from "@/components/motion/MagneticButton";
+import LanguageMarquee from "@/components/motion/LanguageMarquee";
+import LiveDot from "@/components/motion/LiveDot";
+import CountUp from "@/components/motion/CountUp";
 
 /**
- * Hook: reveals any element with the `reveal` class as it scrolls into view.
+ * Kicks off the older .reveal scroll animations used on the lower sections.
+ * Hero uses .kin (kinetic reveal) which has its own observer via useScrollReveal.
  */
-function useScrollReveal() {
+function useLegacyReveal() {
   useEffect(() => {
     const els = document.querySelectorAll<HTMLElement>(".reveal");
     const observer = new IntersectionObserver(
@@ -31,7 +37,13 @@ export default function Home() {
   const { user, userProfile, loading } = useAuth();
   const router = useRouter();
   const redirected = useRef(false);
-  useScrollReveal();
+
+  useLegacyReveal();
+  // Kinetic hero text — animates on mount, not on scroll.
+  useScrollReveal(".kin", { immediate: true });
+  // Flourish underline draws when the "perfect" word enters the viewport
+  // (on mount it's already in the viewport, so this fires right away).
+  useScrollReveal(".flourish", { threshold: 0.1 });
 
   // If already signed in, slip through to the right dashboard.
   useEffect(() => {
@@ -61,7 +73,7 @@ export default function Home() {
           </Link>
           <Link
             href="/signup"
-            className="rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 px-5 py-2 text-sm font-semibold text-slate-900 shadow-lg shadow-teal-500/30 transition hover:shadow-teal-400/50"
+            className="rounded-full bg-gradient-to-r from-teal-300 to-cyan-300 px-5 py-2 text-sm font-semibold text-slate-900 shadow-lg shadow-teal-500/30 transition hover:shadow-teal-400/60"
           >
             Get started
           </Link>
@@ -69,66 +81,71 @@ export default function Home() {
       </nav>
 
       {/* ============== HERO ============== */}
-      <section className="relative min-h-screen overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-900 text-white">
-        {/* Soft ambient blobs */}
-        <div className="pointer-events-none absolute -top-20 -left-20 h-[32rem] w-[32rem] rounded-full bg-teal-500/20 blur-3xl drift" />
-        <div className="pointer-events-none absolute -right-20 top-40 h-[28rem] w-[28rem] rounded-full bg-cyan-400/15 blur-3xl drift-delay" />
-        <div className="pointer-events-none absolute bottom-0 left-1/3 h-[24rem] w-[24rem] rounded-full bg-sky-500/10 blur-3xl drift" />
-
-        {/* Dashed connector decoration */}
-        <svg
-          className="pointer-events-none absolute left-10 top-1/3 hidden opacity-40 md:block"
-          width="180"
-          height="220"
-          viewBox="0 0 180 220"
-          fill="none"
-        >
-          <path
-            d="M10,10 C 80,40 60,120 140,110 S 120,210 170,210"
-            stroke="#5eead4"
-            strokeWidth="1.5"
-            strokeDasharray="5 7"
-            strokeLinecap="round"
-          />
-        </svg>
-        <svg
-          className="pointer-events-none absolute right-8 bottom-32 hidden opacity-40 md:block"
-          width="220"
-          height="120"
-          viewBox="0 0 220 120"
-          fill="none"
-        >
-          <path
-            d="M10,60 C 60,10 120,110 210,40"
-            stroke="#67e8f9"
-            strokeWidth="1.5"
-            strokeDasharray="5 7"
-            strokeLinecap="round"
-          />
-        </svg>
+      <section className="grain relative min-h-screen overflow-hidden bg-slate-950 text-white">
+        {/* Gradient mesh — replaces the three static blobs with one drifting
+            multi-colour mesh. Adds a pink accent the palette was missing. */}
+        <div className="mesh pointer-events-none absolute inset-0" />
+        <div className="grid-dots pointer-events-none absolute inset-0 opacity-60" />
 
         <div className="relative z-10 mx-auto flex min-h-screen max-w-5xl flex-col items-center justify-center px-6 pt-24 pb-32 text-center">
-          <p className="reveal mb-5 text-sm font-medium uppercase tracking-[0.25em] text-teal-300">
+          <p className="kin pill-label mb-6 text-sm font-medium uppercase tracking-[0.25em] text-teal-300">
             Language practice, reimagined
           </p>
-          <h1 className="reveal mb-6 text-5xl font-bold leading-tight tracking-tight md:text-7xl">
-            Practice makes
+
+          {/* Kinetic headline — stagger-reveals per word, Fraunces italic
+              flourish on "perfect" with an SVG underline that draws in. */}
+          <h1
+            className="mb-6 font-display text-5xl font-[350] leading-[0.95] tracking-tight md:text-7xl"
+            style={{ fontVariationSettings: "'opsz' 144" }}
+          >
+            <span className="kin" style={{ animationDelay: "0.05s" }}>Practice</span>{" "}
+            <span className="kin" style={{ animationDelay: "0.18s" }}>makes</span>
             <br />
-            <span className="bg-gradient-to-r from-teal-300 via-cyan-300 to-sky-300 bg-clip-text italic text-transparent">
-              perfect
+            <span
+              className="kin relative inline-block italic"
+              style={{ animationDelay: "0.34s", fontVariationSettings: "'opsz' 144, 'SOFT' 100" }}
+            >
+              <span className="bg-gradient-to-r from-teal-200 via-cyan-200 to-sky-200 bg-clip-text text-transparent">
+                perfect
+              </span>
+              <svg
+                className="flourish pointer-events-none absolute -bottom-2 left-0 w-full"
+                viewBox="0 0 300 20"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M2 14 C 60 2, 120 20, 180 8 S 280 18, 298 6"
+                  stroke="url(#flourish-gradient)"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                />
+                <defs>
+                  <linearGradient id="flourish-gradient" x1="0" x2="1">
+                    <stop offset="0" stopColor="#5eead4" />
+                    <stop offset="1" stopColor="#7dd3fc" />
+                  </linearGradient>
+                </defs>
+              </svg>
             </span>
           </h1>
-          <p className="reveal mx-auto mb-10 max-w-2xl text-lg text-slate-300 md:text-xl">
+
+          <p
+            className="kin mx-auto mb-10 max-w-2xl text-lg text-slate-300 md:text-xl"
+            style={{ animationDelay: "0.5s" }}
+          >
             Real conversations with native speakers, on demand. The missing half of language learning.
           </p>
-          <div className="reveal flex flex-col gap-3 sm:flex-row">
-            <Link
+
+          <div className="kin flex flex-col gap-3 sm:flex-row" style={{ animationDelay: "0.65s" }}>
+            {/* Magnetic CTA — cursor offset nudges the button. */}
+            <MagneticButton
               href="/signup"
-              className="group rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 px-8 py-3.5 text-base font-semibold text-slate-900 shadow-xl shadow-teal-500/30 transition hover:shadow-teal-400/60"
+              className="group rounded-full bg-gradient-to-r from-teal-300 to-cyan-300 px-8 py-3.5 text-base font-semibold text-slate-900 shadow-[0_10px_40px_-10px_rgba(45,212,191,0.7)] transition-shadow hover:shadow-[0_20px_60px_-10px_rgba(45,212,191,0.85)]"
             >
               Start practicing
               <span className="ml-1 inline-block transition-transform group-hover:translate-x-1">→</span>
-            </Link>
+            </MagneticButton>
             <Link
               href="/login"
               className="rounded-full border border-white/20 bg-white/5 px-8 py-3.5 text-base font-medium text-white backdrop-blur-sm transition hover:bg-white/10"
@@ -136,6 +153,22 @@ export default function Home() {
               I already have an account
             </Link>
           </div>
+
+          {/* Live social proof — breathing dot + count-up. */}
+          <div
+            className="kin mt-10 flex items-center gap-2 text-sm text-slate-400"
+            style={{ animationDelay: "0.8s" }}
+          >
+            <LiveDot variant="online" size="xs" />
+            <span>
+              <CountUp to={37} className="font-mono font-semibold text-white" /> native speakers online now
+            </span>
+          </div>
+        </div>
+
+        {/* Language marquee — breadth cue without another headline. */}
+        <div className="absolute inset-x-0 bottom-20 z-10 opacity-60">
+          <LanguageMarquee />
         </div>
 
         {/* Wave divider to light section */}
@@ -155,7 +188,7 @@ export default function Home() {
           <p className="reveal mb-4 text-sm font-medium uppercase tracking-[0.25em] text-teal-600 dark:text-teal-400">
             A simple idea
           </p>
-          <h2 className="reveal mb-10 text-3xl font-bold leading-tight tracking-tight text-slate-900 dark:text-slate-100 md:text-5xl">
+          <h2 className="reveal mb-10 font-display text-3xl font-[400] leading-tight tracking-tight text-slate-900 dark:text-slate-100 md:text-5xl">
             Think about learning <span className="italic text-teal-600 dark:text-teal-400">anything.</span>
           </h2>
 
@@ -176,7 +209,7 @@ export default function Home() {
               <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800 text-2xl">
                 📘
               </div>
-              <h3 className="mb-2 text-xl font-bold text-slate-900 dark:text-slate-100">The lesson</h3>
+              <h3 className="mb-2 font-display text-xl font-[500] text-slate-900 dark:text-slate-100">The lesson</h3>
               <p className="text-slate-600 dark:text-slate-300">
                 A teacher explains, corrects, and builds structure. Essential for learning the rules.
               </p>
@@ -185,7 +218,7 @@ export default function Home() {
               <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-100 dark:bg-teal-900/40 text-2xl">
                 💬
               </div>
-              <h3 className="mb-2 text-xl font-bold text-slate-900 dark:text-teal-100">The practice</h3>
+              <h3 className="mb-2 font-display text-xl font-[500] text-slate-900 dark:text-teal-100">The practice</h3>
               <p className="text-slate-600 dark:text-slate-300">
                 Real conversation, away from the classroom. Where learning actually sticks.
               </p>
@@ -205,16 +238,15 @@ export default function Home() {
       </section>
 
       {/* ============== SECTION 3 — WHERE SPEAKSPACE COMES IN ============== */}
-      <section className="relative overflow-hidden bg-slate-900 px-6 py-24 text-white md:py-32">
-        {/* Ambient glow */}
-        <div className="pointer-events-none absolute -left-20 top-20 h-96 w-96 rounded-full bg-teal-500/15 blur-3xl drift" />
-        <div className="pointer-events-none absolute -right-10 bottom-10 h-96 w-96 rounded-full bg-cyan-400/10 blur-3xl drift-delay" />
+      <section className="grain relative overflow-hidden bg-slate-900 px-6 py-24 text-white md:py-32">
+        {/* Gradient mesh for this section too — smaller, softer. */}
+        <div className="mesh pointer-events-none absolute inset-0 opacity-70" />
 
         <div className="relative z-10 mx-auto max-w-4xl">
           <p className="reveal mb-4 text-sm font-medium uppercase tracking-[0.25em] text-teal-300">
             That&apos;s where we come in
           </p>
-          <h2 className="reveal mb-10 text-3xl font-bold leading-tight tracking-tight md:text-5xl">
+          <h2 className="reveal mb-10 font-display text-3xl font-[400] leading-tight tracking-tight md:text-5xl">
             Practice shouldn&apos;t be the{" "}
             <span className="bg-gradient-to-r from-teal-300 to-cyan-300 bg-clip-text italic text-transparent">
               hard part.
@@ -244,7 +276,7 @@ export default function Home() {
                 className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm transition hover:border-teal-400/40 hover:bg-white/10"
               >
                 <div className="mb-3 h-1 w-8 rounded-full bg-gradient-to-r from-teal-400 to-cyan-400" />
-                <h3 className="mb-1 font-semibold text-white">{f.title}</h3>
+                <h3 className="mb-1 font-display text-lg font-[500] text-white">{f.title}</h3>
                 <p className="text-sm text-slate-400">{f.desc}</p>
               </div>
             ))}
@@ -252,13 +284,13 @@ export default function Home() {
 
           {/* Final CTA */}
           <div className="reveal mt-16 text-center">
-            <Link
+            <MagneticButton
               href="/signup"
-              className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 px-10 py-4 text-base font-semibold text-slate-900 shadow-xl shadow-teal-500/30 transition hover:shadow-teal-400/60"
+              className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-teal-300 to-cyan-300 px-10 py-4 text-base font-semibold text-slate-900 shadow-[0_10px_40px_-10px_rgba(45,212,191,0.7)] transition-shadow hover:shadow-[0_20px_60px_-10px_rgba(45,212,191,0.85)]"
             >
               Start practicing today
               <span className="transition-transform group-hover:translate-x-1">→</span>
-            </Link>
+            </MagneticButton>
             <p className="mt-4 text-sm text-slate-400">
               Free to start. No card required.
             </p>

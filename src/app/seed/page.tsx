@@ -6,6 +6,7 @@ import {
   doc,
   setDoc,
   addDoc,
+  updateDoc,
   serverTimestamp,
   Timestamp,
   query,
@@ -13,6 +14,7 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useAuth } from "@/contexts/AuthContext";
 import toast from "react-hot-toast";
 import { ALL_GUIDANCE } from "@/lib/guidanceSeed";
 
@@ -222,8 +224,31 @@ function futureDate(daysFromNow: number, hour: number, minute = 0): Date {
 }
 
 export default function SeedPage() {
+  const { user, userProfile, refreshProfile } = useAuth();
   const [seeding, setSeeding] = useState(false);
   const [done, setDone] = useState(false);
+  const [promoting, setPromoting] = useState(false);
+
+  const handlePromoteMe = async () => {
+    if (!user) {
+      toast.error("Log in first, then come back here");
+      return;
+    }
+    if (userProfile?.role === "admin") {
+      toast("You're already admin", { icon: "ok" });
+      return;
+    }
+    setPromoting(true);
+    try {
+      await updateDoc(doc(db, "users", user.uid), { role: "admin" });
+      await refreshProfile?.();
+      toast.success("You're now admin. Reload /dashboard/admin to see it.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not promote");
+    } finally {
+      setPromoting(false);
+    }
+  };
 
   const handleSeed = async () => {
     setSeeding(true);
@@ -397,6 +422,38 @@ export default function SeedPage() {
             {seeding ? "Seeding..." : "Seed Data"}
           </button>
         )}
+
+        {/* Dev shortcut: promote the currently signed-in user to admin */}
+        <div className="mt-8 border-t border-white/10 pt-6 text-left">
+          <p className="mb-1 text-sm font-semibold text-white">Make me admin</p>
+          <p className="mb-3 text-xs text-slate-400">
+            Promotes whoever is currently signed in to the admin role. Dev only &mdash;
+            remove this page before going live.
+          </p>
+          {user ? (
+            <div className="space-y-2">
+              <p className="text-xs text-slate-500">
+                Signed in as <span className="text-slate-300">{userProfile?.displayName ?? user.email}</span>
+                {userProfile?.role && (
+                  <> &middot; current role: <span className="text-slate-300">{userProfile.role}</span></>
+                )}
+              </p>
+              <button
+                onClick={handlePromoteMe}
+                disabled={promoting || userProfile?.role === "admin"}
+                className="w-full rounded-full border border-teal-400/40 bg-teal-400/10 px-4 py-2 text-sm font-semibold text-teal-200 transition hover:bg-teal-400/20 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {userProfile?.role === "admin"
+                  ? "Already admin"
+                  : promoting
+                  ? "Promoting..."
+                  : "Promote me to admin"}
+              </button>
+            </div>
+          ) : (
+            <p className="text-xs text-amber-300">Log in first, then come back here.</p>
+          )}
+        </div>
       </div>
     </div>
   );

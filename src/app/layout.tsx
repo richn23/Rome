@@ -1,14 +1,33 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Fraunces, Inter_Tight, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import NotificationListener from "@/components/NotificationListener";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Display: variable serif with a distinctive italic (paired with the
+// "perfect" flourish in the hero). We pull the italic + SOFT axis for
+// headline flair but not for body copy.
+const fraunces = Fraunces({
+  variable: "--font-display",
   subsets: ["latin"],
+  axes: ["SOFT", "opsz"],
+  display: "swap",
+});
+
+// Body: modern sans, slightly condensed — better hierarchy at UI sizes.
+const interTight = Inter_Tight({
+  variable: "--font-sans",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+// Mono: for tabular figures in stats, times, prices.
+const jetBrainsMono = JetBrains_Mono({
+  variable: "--font-mono",
+  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -33,7 +52,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${geistSans.variable} h-full`}>
+    <html
+      lang="en"
+      className={`${fraunces.variable} ${interTight.variable} ${jetBrainsMono.variable} h-full`}
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: noFlashScript }} />
       </head>

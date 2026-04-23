@@ -20,6 +20,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import RouteGuard from "@/components/RouteGuard";
 import { SpeakerStatus, Booking, Session, UserProfile, Rating, LEVELS, LevelCode } from "@/types";
+import CountUp from "@/components/motion/CountUp";
 import toast from "react-hot-toast";
 
 function SpeakerDashboardContent() {
@@ -331,25 +332,33 @@ function SpeakerDashboardContent() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">This week</p>
-          <p className="mt-1 text-2xl font-bold text-teal-600 dark:text-teal-400">${earnings.week.toFixed(2)}</p>
+          <p className="mt-1 font-mono text-2xl font-semibold text-teal-600 dark:text-teal-400">
+            <CountUp to={earnings.week} decimals={2} prefix="$" />
+          </p>
         </div>
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">This month</p>
-          <p className="mt-1 text-2xl font-bold text-teal-600 dark:text-teal-400">${earnings.month.toFixed(2)}</p>
+          <p className="mt-1 font-mono text-2xl font-semibold text-teal-600 dark:text-teal-400">
+            <CountUp to={earnings.month} decimals={2} prefix="$" />
+          </p>
         </div>
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">All time</p>
-          <p className="mt-1 text-2xl font-bold text-teal-600 dark:text-teal-400">${earnings.all.toFixed(2)}</p>
+          <p className="mt-1 font-mono text-2xl font-semibold text-teal-600 dark:text-teal-400">
+            <CountUp to={earnings.all} decimals={2} prefix="$" />
+          </p>
         </div>
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Sessions</p>
-          <p className="mt-1 text-2xl font-bold text-teal-600 dark:text-teal-400">{history.length}</p>
+          <p className="mt-1 font-mono text-2xl font-semibold text-teal-600 dark:text-teal-400">
+            <CountUp to={history.length} />
+          </p>
         </div>
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Rating</p>
-          <p className="mt-1 text-2xl font-bold text-amber-500">
-            {avgRating > 0 ? avgRating.toFixed(1) : "—"}
-            <span className="ml-1 text-sm text-slate-400 dark:text-slate-500">({ratings.length})</span>
+          <p className="mt-1 font-mono text-2xl font-semibold text-amber-500">
+            {avgRating > 0 ? <CountUp to={avgRating} decimals={1} /> : "—"}
+            <span className="ml-1 font-sans text-sm font-normal text-slate-400 dark:text-slate-500">({ratings.length})</span>
           </p>
         </div>
       </div>
