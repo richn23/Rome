@@ -6,8 +6,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { UserRole } from "@/types";
 
 interface RouteGuardProps {
-  allowedRole: UserRole;
+  allowedRole: UserRole | UserRole[];
   children: React.ReactNode;
+}
+
+function isAllowed(role: UserRole, allowed: UserRole | UserRole[]): boolean {
+  return Array.isArray(allowed) ? allowed.includes(role) : role === allowed;
 }
 
 export default function RouteGuard({ allowedRole, children }: RouteGuardProps) {
@@ -20,7 +24,7 @@ export default function RouteGuard({ allowedRole, children }: RouteGuardProps) {
       router.replace("/login");
       return;
     }
-    if (userProfile && userProfile.role !== allowedRole) {
+    if (userProfile && !isAllowed(userProfile.role, allowedRole)) {
       router.replace(`/dashboard/${userProfile.role}`);
     }
   }, [user, userProfile, loading, allowedRole, router]);
@@ -33,7 +37,7 @@ export default function RouteGuard({ allowedRole, children }: RouteGuardProps) {
     );
   }
 
-  if (!user || !userProfile || userProfile.role !== allowedRole) {
+  if (!user || !userProfile || !isAllowed(userProfile.role, allowedRole)) {
     return null;
   }
 

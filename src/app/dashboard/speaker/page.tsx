@@ -285,6 +285,18 @@ function SpeakerDashboardContent() {
               >
                 Manage availability &rarr;
               </Link>
+              <Link
+                href="/dashboard/speaker/resources"
+                className="rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-slate-200 backdrop-blur-sm transition hover:bg-white/10 hover:text-white"
+              >
+                Resources &rarr;
+              </Link>
+              <Link
+                href="/dashboard/speaker/guidance"
+                className="rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-slate-200 backdrop-blur-sm transition hover:bg-white/10 hover:text-white"
+              >
+                Guidance &rarr;
+              </Link>
             </div>
             {userProfile?.awayMode && (
               <span className="mt-3 inline-block rounded-full border border-amber-300/30 bg-amber-400/15 px-3 py-1 text-xs font-medium text-amber-200">
@@ -342,6 +354,39 @@ function SpeakerDashboardContent() {
         </div>
       </div>
 
+      {/* Resource Bank — link into the full Resources page */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500 text-base">
+                📚
+              </span>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                Resource Bank
+              </h3>
+            </div>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Shared handouts, prompts, and materials across all speakers.
+            </p>
+          </div>
+          <Link
+            href="/dashboard/speaker/resources"
+            className="rounded-full border border-teal-500/30 bg-teal-500/10 px-4 py-1.5 text-sm font-medium text-teal-700 hover:bg-teal-500/20 dark:text-teal-300"
+          >
+            Open resources &rarr;
+          </Link>
+        </div>
+        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 py-8 px-6 text-center dark:border-slate-700 dark:bg-slate-900/60">
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+            Browse or share a resource
+          </p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            Upload a PDF, handout, or slide deck, or download something another speaker has shared.
+          </p>
+        </div>
+      </div>
+
       {/* Incoming Requests */}
       <div>
         <div className="mb-3 flex items-center gap-2">
@@ -377,9 +422,16 @@ function SpeakerDashboardContent() {
                     </div>
                   )}
                   <div>
-                    <p className="font-medium text-slate-900 dark:text-slate-100">
-                      {b.learnerProfile?.displayName ?? "Learner"}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium text-slate-900 dark:text-slate-100">
+                        {b.learnerProfile?.displayName ?? "Learner"}
+                      </p>
+                      {b.challengeUp && (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                          Challenge Up
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-slate-500 dark:text-slate-400">
                       {b.learnerProfile?.level
                         ? LEVELS[b.learnerProfile.level as LevelCode]
@@ -387,6 +439,11 @@ function SpeakerDashboardContent() {
                       {b.learnerProfile?.learningLanguage &&
                         ` · Learning ${b.learnerProfile.learningLanguage}`}
                     </p>
+                    {b.challengeUp && (
+                      <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                        Learner wants to be pushed up a level for this session.
+                      </p>
+                    )}
                     {b.topicSuggestion && (
                       <p className="mt-1 text-sm italic text-slate-600 dark:text-slate-300">
                         &ldquo;{b.topicSuggestion}&rdquo;
@@ -444,9 +501,16 @@ function SpeakerDashboardContent() {
                       </div>
                     )}
                     <div>
-                      <p className="font-medium text-slate-900 dark:text-slate-100">
-                        {b.learnerProfile?.displayName ?? "Learner"}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium text-slate-900 dark:text-slate-100">
+                          {b.learnerProfile?.displayName ?? "Learner"}
+                        </p>
+                        {b.challengeUp && (
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                            Challenge Up
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-slate-500 dark:text-slate-400">
                         {when?.toLocaleString(undefined, {
                           weekday: "short",

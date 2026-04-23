@@ -17,7 +17,7 @@ import {
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { Session, ChatMessage, UserProfile, Topic, LevelSignalType, LEVELS, LevelCode } from "@/types";
+import { Session, ChatMessage, UserProfile, Topic, LevelSignalType, LEVELS, LevelCode, Handoff } from "@/types";
 import toast from "react-hot-toast";
 
 export default function CallRoomPage({
@@ -38,8 +38,17 @@ export default function CallRoomPage({
   const [topic, setTopic] = useState<Topic | null>(null);
   const [showRating, setShowRating] = useState(false);
   const [ratingScore, setRatingScore] = useState(0);
+  const [challengeUp, setChallengeUp] = useState(false);
   const [showLevelPrompt, setShowLevelPrompt] = useState(false);
   const [levelSignalSubmitting, setLevelSignalSubmitting] = useState(false);
+  /* End-of-session speaker feedback form */
+  const [notesToLearner, setNotesToLearner] = useState("");
+  const [notesToNextSpeaker, setNotesToNextSpeaker] = useState("");
+  const [topicsDiscussedText, setTopicsDiscussedText] = useState("");
+  const [challengeRating, setChallengeRating] = useState(0); // 0 = unset
+  /* Handoff notes from whichever speaker saw this learner most recently
+   * (excluding the session currently in progress). Keyed by learner uid. */
+  const [handoffsByLearner, setHandoffsByLearner] = useState<Record<string, Handoff>>({});
   const chatEndRef = useRef<HTMLDivElement>(null);
   const isSpeaker = userProfile?.role === "speaker";
 
@@ -95,6 +104,32 @@ export default function CallRoomPage({
         const topicSnap = await getDoc(doc(db, "topics", session.topicId));
         if (topicSnap.exists()) setTopic({ topicId: topicSnap.id, ...topicSnap.data() } as Topic);
       }
+
+      // Check if any booking for this session had Challenge Up selected
+      const bookingsSnap = await getDocs(
+        query(collection(db, "bookings"), where("sessionId", "==", session.sessionId))
+      );
+      const anyChallenge = bookingsSnap.docs.some((d) => d.data()?.challengeUp === true);
+      setChallengeUp(anyChallenge);
+
+      // Fetch the most recent handoff note for each learner (excluding this
+      // session's in-progress one). Shown in the speaker sidebar.
+      const handoffMap: Record<string, Handoff> = {};
+      await Promise.all(
+        session.learnerIds.map(async (lid) => {
+          const hq = query(
+            collection(db, "handoffs"),
+            where("learnerId", "==", lid),
+            orderBy("createdAt", "desc")
+          );
+          const hsnap = await getDocs(hq);
+          const latest = hsnap.docs
+            .map((d) => ({ handoffId: d.id, ...d.data() }) as Handoff)
+            .find((h) => h.sessionId !== session.sessionId);
+          if (latest) handoffMap[lid] = latest;
+        })
+      );
+      setHandoffsByLearner(handoffMap);
     };
     fetchData();
   }, [session]);
@@ -171,25 +206,76 @@ export default function CallRoomPage({
     router.push("/dashboard/learner");
   };
 
-  /* Speaker submits a level signal for each learner in the session */
-  const submitLevelSignal = async (signalType: LevelSignalType) => {
+  /** Map a 1-5 challenge rating to the legacy level-signal value. */
+  const signalFromRating = (rating: number): LevelSignalType | null => {
+    if (rating <= 0) return null;
+    if (rating <= 2) return "too_hard";
+    if (rating >= 5) return "too_easy";
+    return "just_right";
+  };
+
+  /* Speaker submits end-of-session feedback: topics, notes, and star rating. */
+  const submitSpeakerFeedback = async () => {
     if (!user || !session) return;
     setLevelSignalSubmitting(true);
     try {
-      await Promise.all(
-        learnerProfiles.map(async (lp) => {
-          if (!lp.level) return; // skip learners without a level set
-          await addDoc(collection(db, "levelSignals"), {
-            sessionId,
-            speakerId: user.uid,
-            learnerId: lp.uid,
-            signalType,
-            atLevel: lp.level,
-            createdAt: serverTimestamp(),
-          });
-        })
-      );
-      toast.success("Thanks — feedback sent");
+      const topicsDiscussed = topicsDiscussedText
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+
+      // Persist the feedback onto the session doc so it's visible to the
+      // learner (notes + topics) and to the next speaker (handoff notes).
+      await updateDoc(doc(db, "sessions", sessionId), {
+        topicsDiscussed,
+        notesToLearner: notesToLearner.trim(),
+        notesToNextSpeaker: notesToNextSpeaker.trim(),
+        challengeRating: challengeRating > 0 ? challengeRating : null,
+      });
+
+      // Derive a level signal from the star rating for the existing level-up
+      // suggestion engine. One signal per learner in the session.
+      const signalType = signalFromRating(challengeRating);
+      if (signalType) {
+        await Promise.all(
+          learnerProfiles.map(async (lp) => {
+            if (!lp.level) return; // skip learners without a level set
+            await addDoc(collection(db, "levelSignals"), {
+              sessionId,
+              speakerId: user.uid,
+              learnerId: lp.uid,
+              signalType,
+              atLevel: lp.level,
+              createdAt: serverTimestamp(),
+            });
+          })
+        );
+      }
+
+      // Write a handoff doc per learner so the next speaker can read these
+      // notes without needing access to the full session (which contains
+      // private chat messages).
+      const speakerName = userProfile?.displayName ?? "Speaker";
+      const trimmedHandoff = notesToNextSpeaker.trim();
+      if (trimmedHandoff || topicsDiscussed.length > 0 || challengeRating > 0) {
+        await Promise.all(
+          learnerProfiles.map(async (lp) => {
+            await addDoc(collection(db, "handoffs"), {
+              learnerId: lp.uid,
+              speakerId: user.uid,
+              speakerName,
+              sessionId,
+              notesToNextSpeaker: trimmedHandoff,
+              topicsDiscussed,
+              challengeRating: challengeRating > 0 ? challengeRating : null,
+              atLevel: lp.level ?? null,
+              createdAt: serverTimestamp(),
+            });
+          })
+        );
+      }
+
+      toast.success("Feedback saved — thanks!");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save feedback");
     } finally {
@@ -198,59 +284,133 @@ export default function CallRoomPage({
     }
   };
 
-  /* Speaker skip level signal (still go to dashboard) */
+  /* Speaker skips the feedback form (still goes to dashboard) */
   const skipLevelSignal = () => {
     router.push("/dashboard/speaker");
   };
 
-  // Speaker level signal overlay
+  // Speaker end-of-session feedback overlay
   if (showLevelPrompt) {
     const firstLearner = learnerProfiles[0];
     const learnerName = firstLearner?.displayName ?? "this learner";
     const currentLevel = firstLearner?.level ? LEVELS[firstLearner.level as LevelCode] : null;
+
+    // Legend for each star value so speakers know what they mean
+    const ratingLabels: Record<number, { title: string; hint: string }> = {
+      1: { title: "Struggling", hint: "Way below their level — slow right down next time" },
+      2: { title: "Slow down",  hint: "Finding it hard — pull back a little on difficulty" },
+      3: { title: "Average",    hint: "Bang on their current level" },
+      4: { title: "Doing well", hint: "Comfortable — slight push would suit" },
+      5: { title: "Ready for a challenge", hint: "Could handle material a level up" },
+    };
+    const activeLabel = challengeRating > 0 ? ratingLabels[challengeRating] : null;
+
     return (
-      <div className="flex min-h-screen items-center justify-center bg-teal-50 px-4">
-        <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
-          <h2 className="mb-1 text-xl font-bold text-slate-900">Nice session!</h2>
-          <p className="mb-6 text-sm text-slate-500">
-            Quick feedback on <strong>{learnerName}</strong>
-            {currentLevel && ` (${currentLevel})`}
-            . This helps them move at the right pace.
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-8">
+        <div className="pointer-events-none absolute -top-20 -left-20 h-[32rem] w-[32rem] rounded-full bg-teal-500/20 blur-3xl drift" />
+        <div className="pointer-events-none absolute -right-20 top-40 h-[28rem] w-[28rem] rounded-full bg-cyan-400/15 blur-3xl drift-delay" />
+        <div className="relative z-10 w-full max-w-xl rounded-3xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-xl">
+          <h2 className="mb-1 text-2xl font-bold text-white">Nice session!</h2>
+          <p className="mb-6 text-sm text-slate-400">
+            A few notes on <strong className="text-white">{learnerName}</strong>
+            {currentLevel && ` (${currentLevel})`}. Shared with the learner and kept as a handoff for whoever teaches them next.
           </p>
-          <p className="mb-3 text-sm font-medium text-slate-700">How was their level?</p>
-          <div className="space-y-2">
+
+          <div className="space-y-5">
+            {/* Topics discussed */}
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-300">
+                Topics discussed
+              </label>
+              <input
+                type="text"
+                value={topicsDiscussedText}
+                onChange={(e) => setTopicsDiscussedText(e.target.value)}
+                placeholder="Ordering food, past tense, weekend plans"
+                className="block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate-500 transition focus:border-teal-400/60 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-teal-400/30"
+              />
+              <p className="mt-1 text-xs text-slate-500">Comma-separated. Shared with the learner and the next speaker.</p>
+            </div>
+
+            {/* Notes to learner */}
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-300">
+                Notes to learner
+              </label>
+              <textarea
+                value={notesToLearner}
+                onChange={(e) => setNotesToLearner(e.target.value)}
+                placeholder="Recap, things to practise, words to look up…"
+                rows={3}
+                maxLength={1000}
+                className="block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate-500 transition focus:border-teal-400/60 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-teal-400/30"
+              />
+            </div>
+
+            {/* Notes for next speaker */}
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-300">
+                Notes for next speaker
+              </label>
+              <textarea
+                value={notesToNextSpeaker}
+                onChange={(e) => setNotesToNextSpeaker(e.target.value)}
+                placeholder="What worked, what they struggled with, what to try next…"
+                rows={3}
+                maxLength={1000}
+                className="block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate-500 transition focus:border-teal-400/60 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-teal-400/30"
+              />
+            </div>
+
+            {/* Challenge rating */}
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-300">
+                Challenge rating
+              </label>
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setChallengeRating(star === challengeRating ? 0 : star)}
+                    disabled={levelSignalSubmitting}
+                    aria-label={`${star} — ${ratingLabels[star].title}`}
+                    title={ratingLabels[star].title}
+                    className={`text-3xl leading-none transition ${
+                      star <= challengeRating ? "text-amber-400" : "text-slate-600 hover:text-slate-400"
+                    }`}
+                  >
+                    ★
+                  </button>
+                ))}
+                {activeLabel && (
+                  <span className="ml-3 text-sm font-medium text-teal-300">{activeLabel.title}</span>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-slate-500">
+                {activeLabel?.hint ?? "3 = on level · 2 = slow down · 5 = ready for a challenge"}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 flex items-center justify-end gap-2">
             <button
+              type="button"
+              onClick={skipLevelSignal}
               disabled={levelSignalSubmitting}
-              onClick={() => submitLevelSignal("too_easy")}
-              className="w-full rounded-lg border border-teal-200 bg-teal-50 px-4 py-3 text-left text-sm font-medium text-teal-800 transition hover:bg-teal-100 disabled:opacity-50"
+              className="rounded-full border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-white/10 disabled:opacity-60"
             >
-              <span className="block font-semibold">Too easy</span>
-              <span className="block text-xs text-teal-700">They could handle harder material</span>
+              Skip
             </button>
             <button
+              type="button"
+              onClick={submitSpeakerFeedback}
               disabled={levelSignalSubmitting}
-              onClick={() => submitLevelSignal("just_right")}
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-medium text-slate-800 transition hover:bg-slate-100 disabled:opacity-50"
+              className="rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 px-6 py-2.5 text-sm font-semibold text-slate-900 shadow-lg shadow-teal-500/30 transition hover:shadow-teal-400/60 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <span className="block font-semibold">Just right</span>
-              <span className="block text-xs text-slate-600">Good fit for their current level</span>
-            </button>
-            <button
-              disabled={levelSignalSubmitting}
-              onClick={() => submitLevelSignal("too_hard")}
-              className="w-full rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm font-medium text-amber-900 transition hover:bg-amber-100 disabled:opacity-50"
-            >
-              <span className="block font-semibold">Too hard</span>
-              <span className="block text-xs text-amber-800">They&apos;d do better at an easier level</span>
+              {levelSignalSubmitting ? "Saving…" : "Save & finish"}
             </button>
           </div>
-          <button
-            onClick={skipLevelSignal}
-            disabled={levelSignalSubmitting}
-            className="mt-3 w-full text-sm text-slate-500 hover:text-slate-700"
-          >
-            Skip
-          </button>
         </div>
       </div>
     );
@@ -340,15 +500,74 @@ export default function CallRoomPage({
               </button>
               {notesOpen && (
                 <div className="px-4 pb-4 space-y-3">
-                  {/* Learner info */}
-                  {learnerProfiles.map((lp) => (
-                    <div key={lp.uid} className="rounded-lg bg-slate-700/50 p-3">
-                      <p className="text-sm font-medium text-teal-400">{lp.displayName}</p>
-                      <p className="text-xs text-slate-400">
-                        Level: {lp.level ? LEVELS[lp.level as LevelCode] : "Unknown"}
+                  {/* Challenge Up prompt */}
+                  {challengeUp && (
+                    <div className="rounded-lg border border-amber-400/40 bg-amber-500/10 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-amber-300">Challenge Up</p>
+                      <p className="mt-1 text-xs text-amber-100">
+                        The learner asked to be pushed for this session — lean into harder vocabulary or trickier questions than their level suggests.
                       </p>
                     </div>
-                  ))}
+                  )}
+                  {/* Learner info + handoff from previous speaker */}
+                  {learnerProfiles.map((lp) => {
+                    const handoff = handoffsByLearner[lp.uid];
+                    return (
+                      <div key={lp.uid} className="space-y-2">
+                        <div className="rounded-lg bg-slate-700/50 p-3">
+                          <p className="text-sm font-medium text-teal-400">{lp.displayName}</p>
+                          <p className="text-xs text-slate-400">
+                            Level: {lp.level ? LEVELS[lp.level as LevelCode] : "Unknown"}
+                          </p>
+                        </div>
+                        {handoff && (
+                          <div className="rounded-lg border border-teal-400/40 bg-teal-500/10 p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-teal-300">
+                                Handoff note
+                              </p>
+                              <span className="text-[10px] text-teal-200/70">
+                                {handoff.speakerName}
+                                {handoff.createdAt?.toDate
+                                  ? ` · ${handoff.createdAt.toDate().toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+                                  : ""}
+                              </span>
+                            </div>
+                            {typeof handoff.challengeRating === "number" && handoff.challengeRating > 0 && (
+                              <p className="mt-1 text-xs text-amber-300">
+                                {"*".repeat(handoff.challengeRating)}
+                                <span className="text-slate-500">{"*".repeat(5 - handoff.challengeRating)}</span>
+                                <span className="ml-2 text-teal-100/80">
+                                  {handoff.challengeRating <= 2
+                                    ? "slow down"
+                                    : handoff.challengeRating >= 5
+                                    ? "ready for a challenge"
+                                    : "on level"}
+                                </span>
+                              </p>
+                            )}
+                            {handoff.topicsDiscussed?.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                {handoff.topicsDiscussed.slice(0, 6).map((t) => (
+                                  <span
+                                    key={t}
+                                    className="rounded bg-slate-800/60 px-1.5 py-0.5 text-[10px] text-slate-200"
+                                  >
+                                    {t}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {handoff.notesToNextSpeaker && (
+                              <p className="mt-2 whitespace-pre-wrap text-xs text-teal-50">
+                                {handoff.notesToNextSpeaker}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                   {/* Topic prompts */}
                   {topic && (
                     <div className="rounded-lg bg-slate-700/50 p-3">

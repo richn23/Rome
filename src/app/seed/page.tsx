@@ -8,9 +8,13 @@ import {
   addDoc,
   serverTimestamp,
   Timestamp,
+  query,
+  where,
+  getDocs,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import toast from "react-hot-toast";
+import { ALL_GUIDANCE } from "@/lib/guidanceSeed";
 
 const DEMO_SPEAKERS = [
   {
@@ -244,25 +248,49 @@ export default function SeedPage() {
         });
       }
 
+      // Seed guidance docs (upsert by audience+slug so re-running doesn't duplicate).
+      for (const g of ALL_GUIDANCE) {
+        const existing = await getDocs(
+          query(
+            collection(db, "guidance"),
+            where("audience", "==", g.audience),
+            where("slug", "==", g.slug)
+          )
+        );
+        if (existing.empty) {
+          await addDoc(collection(db, "guidance"), {
+            audience: g.audience,
+            slug: g.slug,
+            title: g.title,
+            summary: g.summary,
+            body: g.body,
+            order: g.order,
+            updatedAt: serverTimestamp(),
+            updatedBy: DEMO_ADMIN.uid,
+          });
+        }
+      }
+
       // Seed availability slots so the learner Scheduled tab has content.
       // Spread across a few speakers over the next 2 weeks.
-      const slotPlan: Array<{ speakerId: string; when: Date; autoConfirm: boolean }> = [
-        { speakerId: "speaker-maria",   when: futureDate(1, 9,  0),  autoConfirm: true  },
-        { speakerId: "speaker-maria",   when: futureDate(1, 17, 30), autoConfirm: true  },
-        { speakerId: "speaker-yuki",    when: futureDate(2, 8,  0),  autoConfirm: true  },
-        { speakerId: "speaker-yuki",    when: futureDate(3, 20, 0),  autoConfirm: false },
-        { speakerId: "speaker-pierre",  when: futureDate(2, 14, 0),  autoConfirm: true  },
-        { speakerId: "demo-speaker-1",  when: futureDate(1, 10, 0),  autoConfirm: true  },
-        { speakerId: "demo-speaker-1",  when: futureDate(4, 10, 0),  autoConfirm: true  },
-        { speakerId: "demo-speaker-2",  when: futureDate(3, 12, 0),  autoConfirm: true  },
-        { speakerId: "demo-speaker-4",  when: futureDate(5, 18, 0),  autoConfirm: true  },
-        { speakerId: "demo-speaker-4",  when: futureDate(6, 18, 0),  autoConfirm: true  },
+      // Mix of 30 and 45 minute slots so both durations are visible.
+      const slotPlan: Array<{ speakerId: string; when: Date; duration: 30 | 45; autoConfirm: boolean }> = [
+        { speakerId: "speaker-maria",   when: futureDate(1, 9,  0),  duration: 30, autoConfirm: true  },
+        { speakerId: "speaker-maria",   when: futureDate(1, 17, 30), duration: 45, autoConfirm: true  },
+        { speakerId: "speaker-yuki",    when: futureDate(2, 8,  0),  duration: 30, autoConfirm: true  },
+        { speakerId: "speaker-yuki",    when: futureDate(3, 20, 0),  duration: 45, autoConfirm: false },
+        { speakerId: "speaker-pierre",  when: futureDate(2, 14, 0),  duration: 45, autoConfirm: true  },
+        { speakerId: "demo-speaker-1",  when: futureDate(1, 10, 0),  duration: 30, autoConfirm: true  },
+        { speakerId: "demo-speaker-1",  when: futureDate(4, 10, 0),  duration: 45, autoConfirm: true  },
+        { speakerId: "demo-speaker-2",  when: futureDate(3, 12, 0),  duration: 30, autoConfirm: true  },
+        { speakerId: "demo-speaker-4",  when: futureDate(5, 18, 0),  duration: 30, autoConfirm: true  },
+        { speakerId: "demo-speaker-4",  when: futureDate(6, 18, 0),  duration: 45, autoConfirm: true  },
       ];
       for (const s of slotPlan) {
         await addDoc(collection(db, "availability"), {
           speakerId: s.speakerId,
           scheduledFor: Timestamp.fromDate(s.when),
-          durationMinutes: 30,
+          durationMinutes: s.duration,
           autoConfirm: s.autoConfirm,
           status: "available",
           bookingId: null,
@@ -270,6 +298,30 @@ export default function SeedPage() {
           createdAt: serverTimestamp(),
         });
       }
+
+      // Seed a pending instant booking WITH challengeUp so the speaker dashboard
+      // shows the Challenge Up badge straight away.
+      await addDoc(collection(db, "bookings"), {
+        learnerId: "learner-alex",
+        speakerId: "speaker-yuki",
+        requestedAt: serverTimestamp(),
+        status: "pending",
+        topicSuggestion: "Ordering food at a restaurant",
+        challengeUp: true,
+        sessionId: null,
+      });
+
+      // Seed a scheduled booking WITH challengeUp (future, already admitted)
+      // so the speaker's Upcoming Sessions list also shows the badge.
+      await addDoc(collection(db, "bookings"), {
+        learnerId: "learner-sarah",
+        speakerId: "speaker-maria",
+        requestedAt: serverTimestamp(),
+        status: "admitted",
+        scheduledFor: Timestamp.fromDate(futureDate(2, 10, 0)),
+        challengeUp: true,
+        sessionId: null,
+      });
 
       // Seed a completed session
       const sessionRef = await addDoc(collection(db, "sessions"), {
@@ -328,7 +380,9 @@ export default function SeedPage() {
         <h1 className="mb-2 text-2xl font-bold text-white">Seed Demo Data</h1>
         <p className="mb-6 text-sm text-slate-400">
           Creates {totalSpeakers} speakers ({DEMO_SPEAKERS.length} named + {NUMBERED_DEMO_SPEAKERS.length} numbered),{" "}
-          {totalLearners} learners, 5 topics, availability slots, and a completed session with a rating.
+          {totalLearners} learners, 5 topics, a mix of 30 and 45-minute availability slots,
+          two Challenge Up bookings (one pending, one scheduled), a completed session with a rating,
+          and {ALL_GUIDANCE.length} starter guidance articles for speakers and learners.
         </p>
         {done ? (
           <div className="font-medium text-teal-300">

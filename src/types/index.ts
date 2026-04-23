@@ -47,7 +47,16 @@ export interface Session {
   status: SessionStatus;
   jitsiRoomId: string;
   topicId?: string;
+  /** Speaker's private notes captured during the live call. */
   speakerNotes?: string;
+  /** Recap / advice written for the learner — shown to them in session history. */
+  notesToLearner?: string;
+  /** Handoff notes for whoever teaches this learner next. */
+  notesToNextSpeaker?: string;
+  /** 1-5. 1-2 = slow down, 3 = average, 4 = doing well, 5 = ready for a challenge. */
+  challengeRating?: number;
+  /** Free-text list of topics covered in the session. Shared with learner + next speaker. */
+  topicsDiscussed?: string[];
   scheduledAt?: Timestamp;
   startedAt?: Timestamp;
   endedAt?: Timestamp;
@@ -88,13 +97,17 @@ export interface Booking {
   // Scheduled booking fields (null/undefined = instant)
   scheduledFor?: Timestamp | null;
   slotId?: string;
+  // Learner can ask to be pushed up a level for this session
+  challengeUp?: boolean;
 }
+
+export type SlotDuration = 30 | 45;
 
 export interface AvailabilitySlot {
   slotId: string;
   speakerId: string;
   scheduledFor: Timestamp;
-  durationMinutes: number; // always 30 for MVP
+  durationMinutes: SlotDuration;
   autoConfirm: boolean;
   status: SlotStatus;
   bookingId?: string | null;
@@ -108,6 +121,7 @@ export interface RecurrenceRule {
   dayOfWeek: number; // 0=Sun, 6=Sat
   hour: number; // 0-23
   minute: number; // 0 or 30
+  durationMinutes: SlotDuration;
   autoConfirm: boolean;
   active: boolean;
   createdAt: Timestamp;
@@ -131,4 +145,62 @@ export interface Rating {
   score: number;
   comment?: string;
   createdAt: Timestamp;
+}
+
+/**
+ * Cross-speaker handoff note. Written when a speaker ends a session and
+ * fills out the feedback form; read by whichever speaker picks up this
+ * learner next. Lives in its own collection so we don't widen read access
+ * on `sessions` (which contains private chat messages).
+ */
+export interface Handoff {
+  handoffId: string;
+  learnerId: string;
+  speakerId: string;
+  speakerName: string;
+  sessionId: string;
+  notesToNextSpeaker: string;
+  topicsDiscussed: string[];
+  challengeRating?: number;
+  atLevel?: LevelCode;
+  createdAt: Timestamp;
+}
+
+/**
+ * A file resource uploaded by a speaker or admin and shared with all
+ * speakers. Stored in Firebase Storage; this document holds the metadata.
+ */
+export interface Resource {
+  resourceId: string;
+  title: string;
+  description?: string;
+  uploaderUid: string;
+  uploaderName: string;
+  uploaderRole: "speaker" | "admin";
+  fileURL: string;
+  storagePath: string; // so we can delete from Storage
+  fileName: string;
+  fileSizeBytes: number;
+  contentType: string;
+  tags?: string[];
+  createdAt: Timestamp;
+}
+
+export type GuidanceAudience = "speaker" | "learner";
+
+/**
+ * A guidance article shown to either speakers or learners (rules, FAQs,
+ * how-to pieces). Body is markdown-ish plain text with blank lines for
+ * paragraphs. Admin can edit title and body in-app.
+ */
+export interface GuidanceDoc {
+  docId: string;
+  audience: GuidanceAudience;
+  slug: string;
+  title: string;
+  summary: string;
+  body: string;
+  order: number;
+  updatedAt: Timestamp;
+  updatedBy?: string;
 }

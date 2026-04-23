@@ -161,6 +161,9 @@ function LearnerDashboardContent() {
   const prevFavouriteStatuses = useRef<Record<string, string | undefined>>({});
   /* Level signals received */
   const [levelSignals, setLevelSignals] = useState<LevelSignal[]>([]);
+  /* Scheduled slot confirm panel — tracks the slot currently being confirmed */
+  const [confirmSlotId, setConfirmSlotId] = useState<string | null>(null);
+  const [confirmChallengeUp, setConfirmChallengeUp] = useState(false);
 
   useEffect(() => {
     const q = query(
@@ -483,7 +486,7 @@ function LearnerDashboardContent() {
 
   // Book a scheduled slot (auto-confirm path). Uses a transaction so two
   // learners can't both grab the same slot.
-  const handleBookSlot = async (slot: AvailabilitySlot) => {
+  const handleBookSlot = async (slot: AvailabilitySlot, challengeUp: boolean) => {
     if (!userProfile) return;
     try {
       await runTransaction(db, async (txn) => {
@@ -500,15 +503,23 @@ function LearnerDashboardContent() {
           status: "admitted",
           scheduledFor: slot.scheduledFor,
           slotId: slot.slotId,
+          challengeUp,
           sessionId: null,
         });
         txn.update(slotRef, { status: "booked", bookingId: bookingRef.id });
       });
       toast.success("Slot booked! See you then.");
+      setConfirmSlotId(null);
+      setConfirmChallengeUp(false);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Booking failed";
       toast.error(msg);
     }
+  };
+
+  const openSlotConfirm = (slot: AvailabilitySlot) => {
+    setConfirmSlotId(slot.slotId);
+    setConfirmChallengeUp(false);
   };
 
   const levelName = userProfile?.level ? LEVELS[userProfile.level as LevelCode] : "Not set";
@@ -561,6 +572,12 @@ function LearnerDashboardContent() {
                   : `${levelSuggestion.count} speakers suggest an easier level →`}
               </button>
             )}
+            <Link
+              href="/dashboard/learner/guidance"
+              className="rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-sm font-medium text-slate-200 backdrop-blur-sm transition hover:bg-white/10 hover:text-white"
+            >
+              Guidance &rarr;
+            </Link>
           </div>
         </div>
       </div>
@@ -733,9 +750,9 @@ function LearnerDashboardContent() {
                   onChange={(e) => setFilterLanguage(e.target.value)}
                   className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
                 >
-                  <option value="">Any language</option>
+                  <option value="" className="bg-white dark:bg-slate-900">Any language</option>
                   {availableLanguages.map((l) => (
-                    <option key={l} value={l}>{l}</option>
+                    <option key={l} value={l} className="bg-white dark:bg-slate-900">{l}</option>
                   ))}
                 </select>
                 <select
@@ -743,21 +760,21 @@ function LearnerDashboardContent() {
                   onChange={(e) => setFilterMaxPrice(Number(e.target.value))}
                   className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
                 >
-                  <option value={0}>Any price</option>
-                  <option value={10}>Up to $10/hr</option>
-                  <option value={20}>Up to $20/hr</option>
-                  <option value={30}>Up to $30/hr</option>
-                  <option value={50}>Up to $50/hr</option>
+                  <option value={0} className="bg-white dark:bg-slate-900">Any price</option>
+                  <option value={10} className="bg-white dark:bg-slate-900">Up to $10/hr</option>
+                  <option value={20} className="bg-white dark:bg-slate-900">Up to $20/hr</option>
+                  <option value={30} className="bg-white dark:bg-slate-900">Up to $30/hr</option>
+                  <option value={50} className="bg-white dark:bg-slate-900">Up to $50/hr</option>
                 </select>
                 <select
                   value={filterMinRating}
                   onChange={(e) => setFilterMinRating(Number(e.target.value))}
                   className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
                 >
-                  <option value={0}>Any rating</option>
-                  <option value={3}>3+ stars</option>
-                  <option value={4}>4+ stars</option>
-                  <option value={4.5}>4.5+ stars</option>
+                  <option value={0} className="bg-white dark:bg-slate-900">Any rating</option>
+                  <option value={3} className="bg-white dark:bg-slate-900">3+ stars</option>
+                  <option value={4} className="bg-white dark:bg-slate-900">4+ stars</option>
+                  <option value={4.5} className="bg-white dark:bg-slate-900">4.5+ stars</option>
                 </select>
               </div>
               {filtersActive && (
@@ -854,27 +871,64 @@ function LearnerDashboardContent() {
                     <div className="space-y-2">
                       {ds.map((s) => {
                         const sp = slotSpeakers[s.speakerId];
+                        const isConfirming = confirmSlotId === s.slotId;
                         return (
-                          <div key={s.slotId} className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3">
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 font-bold text-white">
-                                {sp?.displayName?.charAt(0).toUpperCase() ?? "?"}
+                          <div key={s.slotId} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 font-bold text-white">
+                                  {sp?.displayName?.charAt(0).toUpperCase() ?? "?"}
+                                </div>
+                                <div>
+                                  <p className="font-medium text-slate-900 dark:text-slate-100">{sp?.displayName ?? "Speaker"}</p>
+                                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                                    {s.scheduledFor.toDate().toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+                                    {" - "}
+                                    <span className="font-medium text-teal-700 dark:text-teal-300">{s.durationMinutes ?? 30} min</span>
+                                    {sp?.nativeLanguage && ` - ${sp.nativeLanguage}`}
+                                    {sp?.hourlyRate ? ` - $${sp.hourlyRate}/hr` : ""}
+                                  </p>
+                                </div>
                               </div>
-                              <div>
-                                <p className="font-medium text-slate-900 dark:text-slate-100">{sp?.displayName ?? "Speaker"}</p>
-                                <p className="text-sm text-slate-500 dark:text-slate-400">
-                                  {s.scheduledFor.toDate().toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
-                                  {sp?.nativeLanguage && ` - ${sp.nativeLanguage}`}
-                                  {sp?.hourlyRate ? ` - $${sp.hourlyRate}/hr` : ""}
-                                </p>
-                              </div>
+                              {!isConfirming && (
+                                <button
+                                  onClick={() => openSlotConfirm(s)}
+                                  className="rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
+                                >
+                                  Book
+                                </button>
+                              )}
                             </div>
-                            <button
-                              onClick={() => handleBookSlot(s)}
-                              className="rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
-                            >
-                              Book
-                            </button>
+                            {isConfirming && (
+                              <div className="mt-3 space-y-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3">
+                                <label className="flex cursor-pointer items-start gap-3">
+                                  <input
+                                    type="checkbox"
+                                    checked={confirmChallengeUp}
+                                    onChange={(e) => setConfirmChallengeUp(e.target.checked)}
+                                    className="mt-0.5 h-4 w-4 rounded border-slate-300 dark:border-slate-700 text-teal-600 focus:ring-teal-500"
+                                  />
+                                  <span className="text-sm">
+                                    <span className="block font-medium text-slate-900 dark:text-slate-100">Challenge Up</span>
+                                    <span className="block text-slate-500 dark:text-slate-400">Ask the speaker to push me a level up for this session.</span>
+                                  </span>
+                                </label>
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() => { setConfirmSlotId(null); setConfirmChallengeUp(false); }}
+                                    className="rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    onClick={() => handleBookSlot(s, confirmChallengeUp)}
+                                    className="rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:shadow-md"
+                                  >
+                                    Confirm booking
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })}

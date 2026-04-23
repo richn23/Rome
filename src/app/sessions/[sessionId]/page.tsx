@@ -166,6 +166,60 @@ function SessionDetailsContent({ sessionId }: { sessionId: string }) {
         </div>
       </div>
 
+      {/* Topics discussed (captured by speaker) */}
+      {session.topicsDiscussed && session.topicsDiscussed.length > 0 && (
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Topics covered</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {session.topicsDiscussed.map((t) => (
+              <span
+                key={t}
+                className="rounded-full bg-teal-50 px-3 py-1 text-xs font-medium text-teal-700 dark:bg-teal-900/30 dark:text-teal-300"
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Notes to learner (from speaker) */}
+      {session.notesToLearner && (
+        <div className="rounded-2xl border border-teal-200 bg-gradient-to-br from-teal-50 to-cyan-50 p-5 dark:border-teal-900/60 dark:from-teal-950/60 dark:to-cyan-950/60">
+          <div className="mb-2 flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-500/20 text-sm">
+              💬
+            </span>
+            <p className="text-xs font-semibold uppercase tracking-wide text-teal-700 dark:text-teal-300">
+              Notes from {speaker?.displayName ?? "your speaker"}
+            </p>
+          </div>
+          <p className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200">
+            {session.notesToLearner}
+          </p>
+        </div>
+      )}
+
+      {/* Challenge rating (visible to learner as a level-fit indicator) */}
+      {typeof session.challengeRating === "number" && session.challengeRating > 0 && (
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            Level fit
+          </p>
+          <p className="mt-2 text-2xl text-amber-500">
+            {"*".repeat(session.challengeRating)}
+            <span className="text-slate-300 dark:text-slate-600">{"*".repeat(5 - session.challengeRating)}</span>
+          </p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            {session.challengeRating <= 2
+              ? "Your speaker felt this was a stretch — a little practice at this level will help."
+              : session.challengeRating >= 5
+              ? "Your speaker thinks you're ready for a challenge!"
+              : "On level — keep going."}
+          </p>
+        </div>
+      )}
+
       {/* Topic */}
       {topic && (
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">

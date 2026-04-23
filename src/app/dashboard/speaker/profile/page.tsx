@@ -6,6 +6,7 @@ import { doc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import RouteGuard from "@/components/RouteGuard";
+import AvatarUpload from "@/components/AvatarUpload";
 import { UserProfile } from "@/types";
 import toast from "react-hot-toast";
 
@@ -112,33 +113,13 @@ function SpeakerProfileContent() {
       )}
 
       <form onSubmit={handleSave} className="space-y-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
-        {/* Avatar */}
-        <div className="flex items-center gap-4">
-          {photoURL ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={photoURL}
-              alt="avatar"
-              className="h-20 w-20 rounded-full object-cover ring-2 ring-teal-100"
-            />
-          ) : (
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 text-2xl font-bold text-white shadow-sm">
-              {displayName.charAt(0).toUpperCase() || "?"}
-            </div>
-          )}
-          <div className="flex-1">
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-              Photo URL
-            </label>
-            <input
-              type="url"
-              value={photoURL}
-              onChange={(e) => setPhotoURL(e.target.value)}
-              placeholder="https://..."
-              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
-            />
-          </div>
-        </div>
+        {/* Avatar upload */}
+        <AvatarUpload
+          uid={userProfile?.uid ?? ""}
+          photoURL={photoURL}
+          initial={displayName.charAt(0).toUpperCase() || "?"}
+          onChange={setPhotoURL}
+        />
 
         {/* Name */}
         <div>
@@ -164,9 +145,9 @@ function SpeakerProfileContent() {
               onChange={(e) => setNativeLanguage(e.target.value)}
               className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
             >
-              <option value="">Select...</option>
+              <option value="" className="bg-white dark:bg-slate-900">Select...</option>
               {LANGUAGES.map((l) => (
-                <option key={l} value={l}>{l}</option>
+                <option key={l} value={l} className="bg-white dark:bg-slate-900">{l}</option>
               ))}
             </select>
           </div>

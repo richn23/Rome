@@ -41,16 +41,32 @@ service cloud.firestore {
     }
 
     // SESSIONS (video call records)
+    // NOTE: sessions store the learner roster as `learnerIds` (array), not
+    // `learnerId`. Using `in` here is what actually matches the schema.
     match /sessions/{sessionId} {
       allow read: if isSignedIn() && (
-        request.auth.uid == resource.data.learnerId ||
+        request.auth.uid in resource.data.learnerIds ||
         request.auth.uid == resource.data.speakerId
       );
       allow create, update: if isSignedIn() && (
-        request.auth.uid == request.resource.data.learnerId ||
+        request.auth.uid in request.resource.data.learnerIds ||
         request.auth.uid == request.resource.data.speakerId
       );
       allow delete: if false;
+    }
+
+    // HANDOFFS
+    // Cross-speaker handoff notes for a learner. Readable by any signed-in
+    // speaker (so the next teacher can catch up) and by the learner the note
+    // is about. Only the authoring speaker can create. Immutable after that.
+    match /handoffs/{handoffId} {
+      allow read: if isSignedIn() && (
+        userRole() == "speaker" ||
+        request.auth.uid == resource.data.learnerId
+      );
+      allow create: if isSignedIn()
+                    && request.auth.uid == request.resource.data.speakerId;
+      allow update, delete: if false;
     }
 
     // REVIEWS
@@ -61,6 +77,31 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.auth.uid == request.resource.data.learnerId;
       allow update: if isSignedIn() && request.auth.uid == resource.data.learnerId;
       allow delete: if false;
+    }
+
+    // RESOURCES
+    // Speaker-shared resource folder. Readable by any signed-in user
+    // (so speakers and admin can see the library). A speaker or admin can
+    // create a resource where they are the uploader. Uploader or admin can
+    // delete. No updates from the client for now.
+    match /resources/{resourceId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+                    && request.auth.uid == request.resource.data.uploaderUid
+                    && (userRole() == "speaker" || userRole() == "admin");
+      allow update: if false;
+      allow delete: if isSignedIn() && (
+        request.auth.uid == resource.data.uploaderUid ||
+        userRole() == "admin"
+      );
+    }
+
+    // GUIDANCE
+    // Help/rules/FAQ articles for speakers and learners. Anyone signed in
+    // can read. Only admin can write (seed, edit, delete).
+    match /guidance/{docId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSignedIn() && userRole() == "admin";
     }
 
     // Default deny — anything not listed above is blocked.

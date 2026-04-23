@@ -15,6 +15,7 @@ function NewBookingContent() {
   const router = useRouter();
   const [speaker, setSpeaker] = useState<UserProfile | null>(null);
   const [topicSuggestion, setTopicSuggestion] = useState("");
+  const [challengeUp, setChallengeUp] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -36,6 +37,7 @@ function NewBookingContent() {
         requestedAt: serverTimestamp(),
         status: "pending",
         topicSuggestion: topicSuggestion || null,
+        challengeUp,
         sessionId: null,
       });
       router.push(`/waiting-room/${bookingRef.id}`);
@@ -63,7 +65,7 @@ function NewBookingContent() {
           <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">{speaker.displayName}</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">${speaker.hourlyRate}/hr</p>
         </div>
-        <div className="mb-6">
+        <div className="mb-5">
           <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">
             Topic suggestion (optional)
           </label>
@@ -75,6 +77,18 @@ function NewBookingContent() {
             className="block w-full rounded-lg border border-slate-300 dark:border-slate-700 px-4 py-3 text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/40 focus:outline-none"
           />
         </div>
+        <label className="mb-6 flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-700 p-3 hover:bg-slate-50 dark:hover:bg-slate-800/60">
+          <input
+            type="checkbox"
+            checked={challengeUp}
+            onChange={(e) => setChallengeUp(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-slate-300 dark:border-slate-700 text-teal-600 focus:ring-teal-500"
+          />
+          <span className="text-sm">
+            <span className="block font-medium text-slate-900 dark:text-slate-100">Challenge Up</span>
+            <span className="block text-slate-500 dark:text-slate-400">Ask the speaker to push me a level up for this session.</span>
+          </span>
+        </label>
         <button
           onClick={handleBook}
           disabled={submitting}
