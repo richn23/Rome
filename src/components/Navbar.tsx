@@ -26,11 +26,12 @@ export default function Navbar() {
       : "/dashboard/admin";
 
   return (
-    <nav className="flex items-center justify-between border-b border-slate-200 bg-white/80 px-6 py-3 shadow-sm backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/80">
-      <div className="flex items-center gap-3">
+    <nav className="flex items-center justify-between gap-2 border-b border-slate-200 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/80 sm:px-6">
+      {/* Left cluster — mark, wordmark (sm+ only so it doesn't clip on mobile), role pill */}
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
         <Link
           href={userProfile ? `/dashboard/${userProfile.role}` : "/"}
-          className="group flex items-center gap-2"
+          className="group flex shrink-0 items-center gap-2"
         >
           {/* Brand mark — plain <img> (SVG, no Next.js Image optimization needed). */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -41,22 +42,26 @@ export default function Navbar() {
             height={32}
             className="h-8 w-8 transition group-hover:opacity-90"
           />
-          <h1 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+          {/* Wordmark hidden at mobile widths — the mark alone carries the brand
+              and we reclaim the space for the role pill + Log out. */}
+          <h1 className="hidden text-lg font-bold tracking-tight text-slate-900 sm:block dark:text-white">
             SpeakSpace
           </h1>
         </Link>
         {userProfile && (
-          <span className="rounded-full bg-teal-100 px-3 py-1 text-xs font-medium capitalize text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
+          <span className="shrink-0 rounded-full bg-teal-100 px-2.5 py-1 text-xs font-medium capitalize text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 sm:px-3">
             {userProfile.role}
           </span>
         )}
       </div>
-      <div className="flex items-center gap-2">
+
+      {/* Right cluster — theme toggle, avatar, Log out */}
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
         <button
           onClick={toggleTheme}
           aria-label="Toggle dark mode"
           title={theme === "dark" ? "Switch to light" : "Switch to dark"}
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
         >
           {theme === "dark" ? (
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -71,7 +76,7 @@ export default function Navbar() {
         {userProfile && (
           <Link
             href={profileHref}
-            className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-slate-700 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+            className="flex shrink-0 items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-700 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 sm:px-3"
           >
             <Avatar
               photoURL={userProfile.photoURL}
@@ -84,7 +89,7 @@ export default function Navbar() {
         )}
         <button
           onClick={handleLogout}
-          className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+          className="shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 sm:px-4"
         >
           Log out
         </button>

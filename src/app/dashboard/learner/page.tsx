@@ -766,10 +766,11 @@ function LearnerDashboardContent() {
 
       {/* ========= Marketplace flow #1 — "Post a request" ========= */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-start justify-between gap-3">
-          <div>
+        {/* Stack header + CTA on mobile; side-by-side at sm+. */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500 text-base">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500 text-base">
                 📣
               </span>
               <h3 className="font-display text-lg font-[500] text-slate-900 dark:text-slate-100">
@@ -783,7 +784,7 @@ function LearnerDashboardContent() {
           <button
             type="button"
             onClick={() => setPostDialogOpen(true)}
-            className="shrink-0 rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:shadow-[0_8px_24px_-8px_rgba(45,212,191,0.7)]"
+            className="shrink-0 self-start whitespace-nowrap rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:shadow-[0_8px_24px_-8px_rgba(45,212,191,0.7)]"
           >
             + Post a request
           </button>
@@ -880,16 +881,16 @@ function LearnerDashboardContent() {
               return (
                 <div
                   key={b.bookingId}
-                  className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm"
+                  className="flex flex-col gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex min-w-0 items-center gap-4">
                     <Avatar
                       photoURL={sp?.photoURL}
                       displayName={sp?.displayName}
-                      className="h-12 w-12 rounded-full ring-1 ring-teal-100"
+                      className="h-12 w-12 shrink-0 rounded-full ring-1 ring-teal-100"
                     />
-                    <div>
-                      <p className="font-semibold text-slate-900 dark:text-slate-100">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold text-slate-900 dark:text-slate-100">
                         {sp?.displayName ?? "Speaker"}
                       </p>
                       <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -914,11 +915,13 @@ function LearnerDashboardContent() {
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  {/* Action buttons: row on all widths, wrap if needed; on mobile
+                      sit below the info block instead of beside it. */}
+                  <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                     {joinable && (
                       <Link
                         href={`/waiting-room/${b.bookingId}`}
-                        className="rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 px-4 py-1.5 text-sm font-semibold text-white shadow-sm hover:shadow-md"
+                        className="flex-1 whitespace-nowrap rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 px-4 py-1.5 text-center text-sm font-semibold text-white shadow-sm hover:shadow-md sm:flex-none"
                       >
                         Join now
                       </Link>
@@ -926,14 +929,14 @@ function LearnerDashboardContent() {
                     {!joinable && b.status === "pending" && (
                       <Link
                         href={`/waiting-room/${b.bookingId}`}
-                        className="rounded-lg border border-teal-200 dark:border-teal-900/60 bg-white px-3 py-1.5 text-sm font-medium text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:bg-teal-900/30"
+                        className="flex-1 whitespace-nowrap rounded-lg border border-teal-200 bg-white px-3 py-1.5 text-center text-sm font-medium text-teal-700 hover:bg-teal-50 dark:border-teal-900/60 dark:bg-teal-900/30 dark:text-teal-300 sm:flex-none"
                       >
                         Open waiting room
                       </Link>
                     )}
                     <button
                       onClick={() => handleCancelBooking(b)}
-                      className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
+                      className="flex-1 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-slate-800 dark:bg-slate-900 sm:flex-none"
                     >
                       Cancel
                     </button>

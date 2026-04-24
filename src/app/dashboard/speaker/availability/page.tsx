@@ -217,8 +217,8 @@ function AvailabilityContent() {
         </Link>
       </div>
 
-      {/* Recurring rules */}
-      <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
+      {/* Recurring rules — no card wrapper, aurora washes through to the edge. */}
+      <section>
         <h2 className="mb-1 text-lg font-bold text-slate-900 dark:text-slate-100">Weekly hours</h2>
         <p className="mb-5 text-sm text-slate-500 dark:text-slate-400">
           Set hours that repeat every week. We will generate slots for the next {WEEKS_AHEAD} weeks.
@@ -301,7 +301,7 @@ function AvailabilityContent() {
       </section>
 
       {/* One-off slots */}
-      <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
+      <section>
         <h2 className="mb-1 text-lg font-bold text-slate-900 dark:text-slate-100">One-off slot</h2>
         <p className="mb-5 text-sm text-slate-500 dark:text-slate-400">Add a single slot for a specific date and time.</p>
 

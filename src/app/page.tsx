@@ -7,8 +7,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useScrollReveal } from "@/components/motion/useScrollReveal";
 import MagneticButton from "@/components/motion/MagneticButton";
 import LanguageMarquee from "@/components/motion/LanguageMarquee";
-import LiveDot from "@/components/motion/LiveDot";
-import CountUp from "@/components/motion/CountUp";
 
 /**
  * Kicks off the older .reveal scroll animations used on the lower sections.
@@ -102,17 +100,24 @@ export default function Home() {
             <span className="kin" style={{ animationDelay: "0.05s" }}>Practice</span>{" "}
             <span className="kin" style={{ animationDelay: "0.18s" }}>makes</span>
             <br />
+            {/* Italic Fraunces has a significant right-side overhang on the
+                "t" — `pr-4` gives the glyph room inside the container so it
+                isn't clipped, and widens the container so the SVG underline
+                (w-full) reaches past the last letter. `overflow-visible`
+                defends against any parent that clips descending/slanting
+                glyphs. */}
             <span
-              className="kin relative inline-block italic"
+              className="kin relative inline-block overflow-visible pr-4 italic"
               style={{ animationDelay: "0.34s", fontVariationSettings: "'opsz' 144, 'SOFT' 100" }}
             >
-              <span className="bg-gradient-to-r from-teal-200 via-cyan-200 to-sky-200 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-teal-200 via-cyan-200 to-sky-200 bg-clip-text pr-1 text-transparent">
                 perfect
               </span>
               <svg
                 className="flourish pointer-events-none absolute -bottom-2 left-0 w-full"
                 viewBox="0 0 300 20"
                 fill="none"
+                preserveAspectRatio="none"
                 aria-hidden="true"
               >
                 <path
@@ -138,33 +143,23 @@ export default function Home() {
             Real conversations with native speakers, on demand. The missing half of language learning.
           </p>
 
-          <div className="kin flex flex-col gap-3 sm:flex-row" style={{ animationDelay: "0.65s" }}>
+          <div className="kin flex w-full max-w-sm flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row" style={{ animationDelay: "0.65s" }}>
             {/* Magnetic CTA — cursor offset nudges the button. */}
             <MagneticButton
               href="/signup"
-              className="group rounded-full bg-gradient-to-r from-teal-300 to-cyan-300 px-8 py-3.5 text-base font-semibold text-slate-900 shadow-[0_10px_40px_-10px_rgba(45,212,191,0.7)] transition-shadow hover:shadow-[0_20px_60px_-10px_rgba(45,212,191,0.85)]"
+              className="group block w-full rounded-full bg-gradient-to-r from-teal-300 to-cyan-300 px-8 py-3.5 text-center text-base font-semibold text-slate-900 shadow-[0_10px_40px_-10px_rgba(45,212,191,0.7)] transition-shadow hover:shadow-[0_20px_60px_-10px_rgba(45,212,191,0.85)] sm:w-auto"
             >
               Start practicing
               <span className="ml-1 inline-block transition-transform group-hover:translate-x-1">→</span>
             </MagneticButton>
             <Link
               href="/login"
-              className="rounded-full border border-white/20 bg-white/5 px-8 py-3.5 text-base font-medium text-white backdrop-blur-sm transition hover:bg-white/10"
+              className="block w-full rounded-full border border-white/20 bg-white/5 px-8 py-3.5 text-center text-base font-medium text-white backdrop-blur-sm transition hover:bg-white/10 sm:w-auto"
             >
               I already have an account
             </Link>
           </div>
 
-          {/* Live social proof — breathing dot + count-up. */}
-          <div
-            className="kin mt-10 flex items-center gap-2 text-sm text-slate-400"
-            style={{ animationDelay: "0.8s" }}
-          >
-            <LiveDot variant="online" size="xs" />
-            <span>
-              <CountUp to={37} className="font-mono font-semibold text-white" /> native speakers online now
-            </span>
-          </div>
         </div>
 
         {/* Language marquee — breadth cue without another headline. */}
@@ -198,11 +193,11 @@ export default function Home() {
 
           <div className="reveal space-y-6 text-lg leading-relaxed text-slate-700 md:text-xl">
             <p>
-              Take tennis. Sometimes you need a lesson with a coach — to improve your skills and
+              Take tennis. Sometimes you need a lesson with a coach - to improve your skills and
               technique. Other times, you just need to <span className="font-semibold text-slate-900">practice</span>.
             </p>
             <p>
-              Language learning is the same. We need teachers to guide and improve us — but we also
+              Language learning is the same. We need teachers to guide and improve us - but we also
               need to practice away from class.
             </p>
           </div>
@@ -259,12 +254,12 @@ export default function Home() {
 
           <div className="reveal space-y-6 text-lg leading-relaxed text-slate-300 md:text-xl">
             <p>
-              It&apos;s not always easy to find practice — and it&apos;s harder to schedule it. We make this
+              It&apos;s not always easy to find practice - and it&apos;s harder to schedule it. We make this
               easy.
             </p>
             <p className="text-white">
               SpeakSpace pairs learners with native speakers to practice, so you can reach your goal
-              — on your time, at your pace.
+              - on your time, at your pace.
             </p>
           </div>
 
@@ -273,7 +268,7 @@ export default function Home() {
             {[
               { title: "Available now", desc: "Book live speakers when you want to practice." },
               { title: "Real conversations", desc: "Native speakers, not scripts." },
-              { title: "Your level", desc: "Pick the level that feels right — challenge up when you're ready." },
+              { title: "Your level", desc: "Pick the level that feels right - challenge up when you're ready." },
             ].map((f) => (
               <div
                 key={f.title}

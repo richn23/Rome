@@ -437,10 +437,11 @@ function SpeakerDashboardContent() {
 
       {/* Resource Bank — link into the full Resources page */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div>
+        {/* Stack header + CTA on mobile; side-by-side at sm+. */}
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500 text-base">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500 text-base">
                 📚
               </span>
               <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
@@ -453,7 +454,7 @@ function SpeakerDashboardContent() {
           </div>
           <Link
             href="/dashboard/speaker/resources"
-            className="rounded-full border border-teal-500/30 bg-teal-500/10 px-4 py-1.5 text-sm font-medium text-teal-700 hover:bg-teal-500/20 dark:text-teal-300"
+            className="shrink-0 self-start whitespace-nowrap rounded-full border border-teal-500/30 bg-teal-500/10 px-4 py-1.5 text-sm font-medium text-teal-700 hover:bg-teal-500/20 dark:text-teal-300"
           >
             Open resources &rarr;
           </Link>
