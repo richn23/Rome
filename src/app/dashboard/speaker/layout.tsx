@@ -2,20 +2,22 @@
  * Speaker-scoped layout.
  *
  * Sits INSIDE the shared /dashboard layout (which provides the Navbar and
- * page padding) so nothing below has to change. Its only job is to paint a
- * very subtle aurora drift behind speaker-facing content — the same teal +
- * cyan blobs used on the call page hero, but dialled down to "barely there".
+ * page padding) so nothing below has to change. Its only job is to paint
+ * an ambient aurora drift behind speaker-facing content — a slow multi-blob
+ * wash that's visible but not distracting.
  *
  * Why a dedicated layout here:
  *   - /dashboard/layout.tsx wraps all roles (learner, speaker, admin).
- *   - The brief is explicit: aurora ONLY on speaker pages.
- *   - Next.js automatically applies this layout to every child route under
- *     /dashboard/speaker (profile, availability, resources, guidance, …).
+ *   - Aurora should appear on speaker routes only (profile, availability,
+ *     resources, guidance, …) — Next's nested-layout convention does the rest.
  *
- * The blobs are pointer-events-none and sit at z-0 so nothing above them
- * becomes unclickable. The content is lifted to z-10 so it paints above.
- * The `drift` / `drift-delay` keyframes in globals.css already include a
- * prefers-reduced-motion guard — no extra work needed for a11y.
+ * Sizing notes:
+ *   - Blobs are larger than the viewport corners so their centres sit just
+ *     off-screen; what you see is the outer fall-off of the radial blur,
+ *     which is what makes it read as "atmospheric" rather than "three dots".
+ *   - The `aurora` / `aurora-delay` / `aurora-delay-2` classes each run a
+ *     20–32 s keyframe with ±80px translation — visible without being busy.
+ *     The reduced-motion media query in globals.css disables it entirely.
  */
 export default function SpeakerDashboardLayout({
   children,
@@ -24,18 +26,25 @@ export default function SpeakerDashboardLayout({
 }) {
   return (
     <div className="relative isolate overflow-hidden">
-      {/* Aurora blobs — subtle, ambient, behind all content */}
+      {/* Top-left — teal */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -top-24 -left-24 z-0 h-[32rem] w-[32rem] rounded-full bg-teal-400/10 blur-3xl drift dark:bg-teal-500/15"
+        className="pointer-events-none absolute -top-40 -left-40 z-0 h-[44rem] w-[44rem] rounded-full bg-teal-400/15 blur-3xl aurora dark:bg-teal-500/20"
       />
+      {/* Top-right — cyan */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -top-16 right-[-8rem] z-0 h-[28rem] w-[28rem] rounded-full bg-cyan-400/10 blur-3xl drift-delay dark:bg-cyan-400/15"
+        className="pointer-events-none absolute -top-32 right-[-14rem] z-0 h-[40rem] w-[40rem] rounded-full bg-cyan-400/12 blur-3xl aurora-delay dark:bg-cyan-400/20"
       />
+      {/* Mid-right — sky (gives the right side of the page some life) */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute bottom-[-10rem] left-1/3 z-0 h-[24rem] w-[24rem] rounded-full bg-sky-400/10 blur-3xl drift dark:bg-sky-500/10"
+        className="pointer-events-none absolute top-1/3 right-[-8rem] z-0 h-[32rem] w-[32rem] rounded-full bg-sky-400/10 blur-3xl aurora-delay-2 dark:bg-sky-500/15"
+      />
+      {/* Bottom-left — teal/mint (anchors the lower half) */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-[-16rem] left-1/4 z-0 h-[40rem] w-[40rem] rounded-full bg-emerald-400/10 blur-3xl aurora dark:bg-emerald-500/12"
       />
 
       {/* Content sits above the aurora */}

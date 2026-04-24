@@ -204,6 +204,19 @@ body {
 .drift       { animation: drift 14s ease-in-out infinite; }
 .drift-delay { animation: drift 18s ease-in-out infinite; animation-delay: -6s; }
 
+/* ---- Aurora — larger, more visible drift for the speaker dashboard.
+        Kept separate from `.drift` so the call page stays subtle. ---- */
+@keyframes aurora {
+  0%   { transform: translate(-30px, 0)    scale(1); }
+  25%  { transform: translate(40px, -40px) scale(1.08); }
+  50%  { transform: translate(80px, 20px)  scale(1.12); }
+  75%  { transform: translate(20px, 50px)  scale(1.05); }
+  100% { transform: translate(-30px, 0)    scale(1); }
+}
+.aurora          { animation: aurora 20s ease-in-out infinite; }
+.aurora-delay    { animation: aurora 26s ease-in-out infinite; animation-delay: -9s; }
+.aurora-delay-2  { animation: aurora 32s ease-in-out infinite; animation-delay: -16s; }
+
 /* ==========================================================================
    Reduced-motion guard. Anyone who's asked for less motion gets a static
    interface — everything above degrades to "already in place".
@@ -219,6 +232,9 @@ body {
   .magnetic,
   .drift,
   .drift-delay,
+  .aurora,
+  .aurora-delay,
+  .aurora-delay-2,
   .reveal,
   .reveal.is-visible,
   .heart-burst.on .bit {
