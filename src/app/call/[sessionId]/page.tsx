@@ -38,6 +38,7 @@ export default function CallRoomPage({
   const [topic, setTopic] = useState<Topic | null>(null);
   const [showRating, setShowRating] = useState(false);
   const [ratingScore, setRatingScore] = useState(0);
+  const [ratingComment, setRatingComment] = useState("");
   const [challengeUp, setChallengeUp] = useState(false);
   const [showLevelPrompt, setShowLevelPrompt] = useState(false);
   const [levelSignalSubmitting, setLevelSignalSubmitting] = useState(false);
@@ -156,6 +157,8 @@ export default function CallRoomPage({
     const platformCut = parseFloat((amountCharged * 0.2).toFixed(2));
     const speakerPayout = parseFloat((amountCharged - platformCut).toFixed(2));
 
+    // Single write covers close-out fields + (if present) the speaker's
+    // in-call notes. Avoids two round trips.
     await updateDoc(doc(db, "sessions", sessionId), {
       status: "ended",
       endedAt: serverTimestamp(),
@@ -164,14 +167,10 @@ export default function CallRoomPage({
       amountCharged,
       platformCut,
       speakerPayout,
+      ...(isSpeaker && speakerNotes.trim()
+        ? { speakerNotes: speakerNotes.trim() }
+        : {}),
     });
-
-    // Save speaker notes
-    if (isSpeaker && speakerNotes.trim()) {
-      await updateDoc(doc(db, "sessions", sessionId), {
-        speakerNotes: speakerNotes.trim(),
-      });
-    }
 
     // Update speaker status back to online and increment session count
     if (isSpeaker && userProfile) {
@@ -189,6 +188,7 @@ export default function CallRoomPage({
       learnerId: user.uid,
       speakerId: session.speakerId,
       score: ratingScore,
+      comment: ratingComment.trim() || null,
       createdAt: serverTimestamp(),
     });
 
@@ -419,27 +419,55 @@ export default function CallRoomPage({
   // Rating overlay
   if (showRating) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-teal-50 px-4">
-        <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-lg">
-          <h2 className="mb-2 text-xl font-bold text-slate-900">Session Complete!</h2>
-          <p className="mb-6 text-slate-500">
+      <div className="flex min-h-screen items-center justify-center bg-teal-50 px-4 py-8 dark:bg-slate-950">
+        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-lg dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="mb-2 text-xl font-bold text-slate-900 dark:text-slate-100">Session Complete!</h2>
+          <p className="mb-6 text-slate-500 dark:text-slate-400">
             Duration: {session?.durationMinutes ?? 0} minutes
           </p>
-          <p className="mb-4 text-sm font-medium text-slate-700">How was your session?</p>
+          <p className="mb-4 text-sm font-medium text-slate-700 dark:text-slate-200">How was your session?</p>
           <div className="mb-6 flex justify-center gap-2">
             {[1, 2, 3, 4, 5].map((star) => (
               <button
                 key={star}
+                type="button"
                 onClick={() => setRatingScore(star)}
+                aria-label={`${star} star${star > 1 ? "s" : ""}`}
                 className={`text-3xl transition ${
-                  star <= ratingScore ? "text-yellow-400" : "text-slate-300"
+                  star <= ratingScore
+                    ? "text-amber-400"
+                    : "text-slate-300 hover:text-amber-300 dark:text-slate-600"
                 }`}
               >
                 ★
               </button>
             ))}
           </div>
+
+          {/* Optional free-text comment */}
+          <div className="mb-6 text-left">
+            <label
+              htmlFor="rating-comment"
+              className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400"
+            >
+              Leave a comment (optional)
+            </label>
+            <textarea
+              id="rating-comment"
+              value={ratingComment}
+              onChange={(e) => setRatingComment(e.target.value)}
+              placeholder="What did you enjoy? What could be better?"
+              rows={3}
+              maxLength={500}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-600"
+            />
+            <p className="mt-1 text-right text-xs text-slate-400 dark:text-slate-500">
+              {ratingComment.length}/500
+            </p>
+          </div>
+
           <button
+            type="button"
             onClick={submitRating}
             disabled={ratingScore === 0}
             className="w-full rounded-lg bg-teal-600 px-4 py-3 font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50"
@@ -447,8 +475,9 @@ export default function CallRoomPage({
             Submit Rating
           </button>
           <button
+            type="button"
             onClick={() => router.push("/dashboard/learner")}
-            className="mt-3 w-full text-sm text-slate-500 hover:text-slate-700"
+            className="mt-3 w-full text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
           >
             Skip
           </button>

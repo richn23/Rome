@@ -21,6 +21,7 @@ import {
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import RouteGuard from "@/components/RouteGuard";
+import Avatar from "@/components/Avatar";
 import { AvailabilitySlot, Rating, UserProfile } from "@/types";
 import toast from "react-hot-toast";
 
@@ -198,18 +199,13 @@ function SpeakerProfileContent({ speakerId }: { speakerId: string }) {
       {/* Header card */}
       <div className="rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 p-6 shadow-sm">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-          {speaker.photoURL ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={speaker.photoURL}
-              alt={speaker.displayName}
-              className="h-24 w-24 rounded-full object-cover ring-2 ring-teal-100 dark:ring-teal-900/50"
-            />
-          ) : (
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 text-3xl font-bold text-white shadow-sm">
-              {speaker.displayName.charAt(0).toUpperCase()}
-            </div>
-          )}
+          <Avatar
+            photoURL={speaker.photoURL}
+            displayName={speaker.displayName}
+            alt={speaker.displayName}
+            className="h-24 w-24 rounded-full ring-2 ring-teal-100 shadow-sm dark:ring-teal-900/50"
+            textClassName="text-3xl"
+          />
 
           <div className="flex-1">
             <div className="flex items-center gap-2">

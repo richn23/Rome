@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { storage } from "@/lib/firebase";
+import Avatar from "@/components/Avatar";
 import toast from "react-hot-toast";
 
 /**
@@ -89,14 +90,13 @@ export default function AvatarUpload({
         aria-label="Change profile photo"
         className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-full ring-2 ring-teal-100 transition hover:ring-teal-300 disabled:cursor-not-allowed disabled:opacity-60 dark:ring-teal-900/60"
       >
-        {photoURL ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={photoURL} alt="avatar" className="h-full w-full object-cover" />
-        ) : (
-          <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-teal-400 to-cyan-500 text-2xl font-bold text-white">
-            {initial}
-          </span>
-        )}
+        <Avatar
+          photoURL={photoURL}
+          initial={initial}
+          alt="avatar"
+          className="h-full w-full rounded-full"
+          textClassName="text-2xl"
+        />
         <span className="absolute inset-0 flex items-center justify-center bg-slate-900/60 text-xs font-medium text-white opacity-0 transition group-hover:opacity-100">
           {uploading ? "Uploading…" : "Change"}
         </span>

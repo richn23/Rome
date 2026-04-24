@@ -1,7 +1,7 @@
-import { initializeApp, getApps } from "firebase/app";
+import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { getFirestore, type Firestore } from "firebase/firestore";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -13,11 +13,41 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+/**
+ * Firebase requires at minimum `apiKey` + `projectId` to bootstrap anything
+ * useful. If either is missing (Vercel env vars not set, local .env missing)
+ * we export nulls rather than throwing on import — components gracefully
+ * degrade via the `isFirebaseReady` flag. Avoids blowing up static pre-render.
+ */
+const isFirebaseConfigured = Boolean(
+  firebaseConfig.apiKey && firebaseConfig.projectId
+);
 
-// Avoid failing static prerender when Firebase API key is not set in build env.
-// Auth is only required for interactive client flows.
-export const auth: Auth | null = firebaseConfig.apiKey ? getAuth(app) : null;
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+let app: FirebaseApp | null = null;
+let authInstance: Auth | null = null;
+let dbInstance: Firestore | null = null;
+let storageInstance: FirebaseStorage | null = null;
+
+if (isFirebaseConfigured) {
+  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+  authInstance = getAuth(app);
+  dbInstance = getFirestore(app);
+  storageInstance = getStorage(app);
+} else if (typeof window !== "undefined") {
+  // Runtime-only warning; don't spam during build/prerender.
+  console.warn(
+    "[firebase] NEXT_PUBLIC_FIREBASE_API_KEY or _PROJECT_ID missing — " +
+      "Firebase features are disabled."
+  );
+}
+
+export const auth: Auth | null = authInstance;
+/**
+ * Firestore handle. Typed as non-null for ergonomic call sites; at runtime it
+ * may be a placeholder when Firebase isn't configured (static build / missing
+ * env). Guard with `isFirebaseReady` if you need to be safe.
+ */
+export const db: Firestore = (dbInstance ?? ({} as Firestore));
+export const storage: FirebaseStorage = (storageInstance ?? ({} as FirebaseStorage));
+export const isFirebaseReady = isFirebaseConfigured;
 export default app;

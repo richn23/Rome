@@ -49,9 +49,14 @@ export default function LoginPage() {
       {/* Left — brand panel (hidden on mobile) */}
       <aside className="relative z-10 hidden flex-1 flex-col justify-between px-12 py-10 text-white lg:flex">
         <Link href="/" className="flex items-center gap-2 text-white/90 transition hover:text-white">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500 font-bold text-white shadow-lg shadow-teal-500/30">
-            S
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-mark.svg"
+            alt=""
+            width={36}
+            height={36}
+            className="h-9 w-9"
+          />
           <span className="text-lg font-bold tracking-tight">SpeakSpace</span>
         </Link>
 
@@ -83,9 +88,14 @@ export default function LoginPage() {
             href="/"
             className="mb-8 flex items-center justify-center gap-2 text-white lg:hidden"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500 font-bold text-white shadow-lg shadow-teal-500/30">
-              S
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo-mark.svg"
+              alt=""
+              width={36}
+              height={36}
+              className="h-9 w-9"
+            />
             <span className="text-lg font-bold tracking-tight">SpeakSpace</span>
           </Link>
 

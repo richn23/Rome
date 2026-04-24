@@ -58,12 +58,13 @@ export default function Home() {
     <main className="flex flex-col">
       {/* ============== NAV ============== */}
       <nav className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 py-5 md:px-12">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500 font-bold text-white shadow-lg shadow-teal-500/30">
-            S
-          </div>
-          <span className="text-lg font-bold tracking-tight text-white">SpeakSpace</span>
-        </div>
+        {/* Hero area — use the full logo (mark + wordmark baked into the SVG). */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo.svg"
+          alt="SpeakSpace"
+          className="h-8 w-auto md:h-9"
+        />
         <div className="flex items-center gap-2 md:gap-3">
           <Link
             href="/login"
@@ -182,20 +183,23 @@ export default function Home() {
         </svg>
       </section>
 
-      {/* ============== SECTION 2 — THE TENNIS ANALOGY ============== */}
-      <section className="relative bg-[#f8fffe] px-6 py-24 md:py-32">
+      {/* ============== SECTION 2 — THE TENNIS ANALOGY ==============
+          This section is intentionally a light band in both light and dark
+          mode (part of the landing's dark → light → dark rhythm). Text and
+          surfaces inside MUST stay dark-on-light; no `dark:` variants here. */}
+      <section className="relative bg-[#f8fffe] px-6 py-24 text-slate-900 md:py-32">
         <div className="mx-auto max-w-4xl">
-          <p className="reveal mb-4 text-sm font-medium uppercase tracking-[0.25em] text-teal-600 dark:text-teal-400">
+          <p className="reveal mb-4 text-sm font-medium uppercase tracking-[0.25em] text-teal-700">
             A simple idea
           </p>
-          <h2 className="reveal mb-10 font-display text-3xl font-[400] leading-tight tracking-tight text-slate-900 dark:text-slate-100 md:text-5xl">
-            Think about learning <span className="italic text-teal-600 dark:text-teal-400">anything.</span>
+          <h2 className="reveal mb-10 font-display text-3xl font-[400] leading-tight tracking-tight text-slate-900 md:text-5xl">
+            Think about learning <span className="italic text-teal-700">anything.</span>
           </h2>
 
-          <div className="reveal space-y-6 text-lg leading-relaxed text-slate-700 dark:text-slate-200 md:text-xl">
+          <div className="reveal space-y-6 text-lg leading-relaxed text-slate-700 md:text-xl">
             <p>
               Take tennis. Sometimes you need a lesson with a coach — to improve your skills and
-              technique. Other times, you just need to <span className="font-semibold text-slate-900 dark:text-slate-100">practice</span>.
+              technique. Other times, you just need to <span className="font-semibold text-slate-900">practice</span>.
             </p>
             <p>
               Language learning is the same. We need teachers to guide and improve us — but we also
@@ -203,23 +207,23 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Two-card visual metaphor */}
+          {/* Two-card visual metaphor — stays light in both themes */}
           <div className="reveal mt-16 grid gap-6 md:grid-cols-2">
-            <div className="group rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800 text-2xl">
+            <div className="group rounded-3xl border border-slate-200 bg-white p-8 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-2xl">
                 📘
               </div>
-              <h3 className="mb-2 font-display text-xl font-[500] text-slate-900 dark:text-slate-100">The lesson</h3>
-              <p className="text-slate-600 dark:text-slate-300">
+              <h3 className="mb-2 font-display text-xl font-[500] text-slate-900">The lesson</h3>
+              <p className="text-slate-600">
                 A teacher explains, corrects, and builds structure. Essential for learning the rules.
               </p>
             </div>
-            <div className="group rounded-3xl border border-teal-200 bg-gradient-to-br from-teal-50 to-cyan-50 p-8 shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-teal-900/60 dark:from-teal-950/60 dark:to-cyan-950/60">
-              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-100 dark:bg-teal-900/40 text-2xl">
+            <div className="group rounded-3xl border border-teal-200 bg-gradient-to-br from-teal-50 to-cyan-50 p-8 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-100 text-2xl">
                 💬
               </div>
-              <h3 className="mb-2 font-display text-xl font-[500] text-slate-900 dark:text-teal-100">The practice</h3>
-              <p className="text-slate-600 dark:text-slate-300">
+              <h3 className="mb-2 font-display text-xl font-[500] text-slate-900">The practice</h3>
+              <p className="text-slate-700">
                 Real conversation, away from the classroom. Where learning actually sticks.
               </p>
             </div>
@@ -302,9 +306,14 @@ export default function Home() {
       <footer className="bg-slate-950 px-6 py-10 text-center text-sm text-slate-500">
         <div className="mx-auto flex max-w-4xl flex-col items-center gap-2">
           <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded bg-gradient-to-br from-teal-400 to-cyan-500 text-xs font-bold text-white">
-              S
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo-mark.svg"
+              alt=""
+              width={24}
+              height={24}
+              className="h-6 w-6"
+            />
             <span className="font-semibold text-slate-300">SpeakSpace</span>
           </div>
           <p>© {new Date().getFullYear()} SpeakSpace. Practice makes perfect.</p>

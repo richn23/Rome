@@ -12,15 +12,18 @@ import {
   getDocs,
   getDoc,
   addDoc,
+  runTransaction,
   serverTimestamp,
+  Timestamp,
 } from "firebase/firestore";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import RouteGuard from "@/components/RouteGuard";
-import { SpeakerStatus, Booking, Session, UserProfile, Rating, LEVELS, LevelCode } from "@/types";
+import { SpeakerStatus, Booking, Session, UserProfile, Rating, SessionRequest, LEVELS, LevelCode } from "@/types";
 import CountUp from "@/components/motion/CountUp";
+import Avatar from "@/components/Avatar";
 import toast from "react-hot-toast";
 
 function SpeakerDashboardContent() {
@@ -32,6 +35,9 @@ function SpeakerDashboardContent() {
   const [history, setHistory] = useState<Session[]>([]);
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [ratings, setRatings] = useState<Rating[]>([]);
+  /* Marketplace flow #1 — open learner requests waiting for a speaker */
+  const [openRequests, setOpenRequests] = useState<SessionRequest[]>([]);
+  const [claimingRequestId, setClaimingRequestId] = useState<string | null>(null);
   /* Tick for "join now" buttons */
   const [nowTick, setNowTick] = useState(() => Date.now());
   useEffect(() => {
@@ -157,6 +163,72 @@ function SpeakerDashboardContent() {
     };
     fetchRatings();
   }, [userProfile]);
+
+  /* Open learner requests — marketplace board. We only show future ones.
+   * Filter client-side by language match against the speaker's nativeLanguage
+   * so the feed stays relevant (but keep the query cheap — single field). */
+  useEffect(() => {
+    const q = query(
+      collection(db, "requests"),
+      where("status", "==", "open"),
+      orderBy("requestedFor", "asc")
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      const now = Timestamp.now();
+      const arr: SessionRequest[] = [];
+      snap.forEach((d) => {
+        const r = { requestId: d.id, ...d.data() } as SessionRequest;
+        if (r.requestedFor && r.requestedFor.toMillis() > now.toMillis()) {
+          arr.push(r);
+        }
+      });
+      setOpenRequests(arr);
+    });
+    return unsub;
+  }, []);
+
+  /* Claim an open request — transaction so two speakers can't both grab it.
+   * Converts the request doc to status=claimed and creates an admitted
+   * booking atomically; the learner's snapshot listener picks up both. */
+  const handleClaimRequest = async (req: SessionRequest) => {
+    if (!userProfile) return;
+    if (userProfile.awayMode) {
+      toast.error("Turn off Away mode first");
+      return;
+    }
+    setClaimingRequestId(req.requestId);
+    try {
+      await runTransaction(db, async (txn) => {
+        const reqRef = doc(db, "requests", req.requestId);
+        const latest = await txn.get(reqRef);
+        if (!latest.exists() || latest.data().status !== "open") {
+          throw new Error("Too late — someone else just claimed it");
+        }
+        const bookingRef = doc(collection(db, "bookings"));
+        txn.set(bookingRef, {
+          learnerId: req.learnerId,
+          speakerId: userProfile.uid,
+          requestedAt: serverTimestamp(),
+          status: "admitted",
+          scheduledFor: req.requestedFor,
+          requestId: req.requestId,
+          topicSuggestion: req.topic ?? null,
+          sessionId: null,
+        });
+        txn.update(reqRef, {
+          status: "claimed",
+          claimedBySpeakerId: userProfile.uid,
+          claimedAt: serverTimestamp(),
+          bookingId: bookingRef.id,
+        });
+      });
+      toast.success("Claimed — it's on your calendar");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not claim");
+    } finally {
+      setClaimingRequestId(null);
+    }
+  };
 
   // Fetch session history
   useEffect(() => {
@@ -418,18 +490,11 @@ function SpeakerDashboardContent() {
                 className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4"
               >
                 <div className="flex items-center gap-3">
-                  {b.learnerProfile?.photoURL ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={b.learnerProfile.photoURL}
-                      alt=""
-                      className="h-11 w-11 rounded-full object-cover ring-1 ring-teal-100 dark:ring-teal-900/50"
-                    />
-                  ) : (
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 font-bold text-white">
-                      {b.learnerProfile?.displayName?.charAt(0).toUpperCase() ?? "?"}
-                    </div>
-                  )}
+                  <Avatar
+                    photoURL={b.learnerProfile?.photoURL}
+                    displayName={b.learnerProfile?.displayName}
+                    className="h-11 w-11 rounded-full ring-1 ring-teal-100 dark:ring-teal-900/50"
+                  />
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-medium text-slate-900 dark:text-slate-100">
@@ -480,6 +545,105 @@ function SpeakerDashboardContent() {
         )}
       </div>
 
+      {/* ========= Marketplace flow #1 — Open learner requests ========= */}
+      <div>
+        <div className="mb-3 flex items-center gap-2">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+            Open learner requests
+          </h3>
+          {openRequests.length > 0 && (
+            <span className="rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 px-2 py-0.5 text-xs font-semibold text-slate-900">
+              {openRequests.length}
+            </span>
+          )}
+        </div>
+        <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
+          Learners posted these without a specific speaker. Claim one and it lands on your calendar.
+        </p>
+        {openRequests.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-300 py-10 text-center text-sm text-slate-400 dark:border-slate-700 dark:text-slate-500">
+            Nothing open right now — check back later.
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {openRequests.map((r) => {
+              const when = r.requestedFor?.toDate?.();
+              const matchesMyLang =
+                !!userProfile?.nativeLanguage && r.language === userProfile.nativeLanguage;
+              const aboveBudget =
+                r.budgetMax !== undefined &&
+                r.budgetMax > 0 &&
+                (userProfile?.hourlyRate ?? 0) > r.budgetMax;
+              const isClaiming = claimingRequestId === r.requestId;
+              return (
+                <div
+                  key={r.requestId}
+                  className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-teal-400/40 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-teal-400/30"
+                >
+                  {matchesMyLang && (
+                    <span className="absolute right-3 top-3 rounded-full bg-teal-500/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-teal-700 dark:text-teal-300">
+                      YOUR LANGUAGE
+                    </span>
+                  )}
+                  <div className="flex items-start gap-3">
+                    <Avatar
+                      photoURL={r.learnerPhotoURL}
+                      displayName={r.learnerName}
+                      className="h-11 w-11 rounded-xl ring-1 ring-teal-100 dark:ring-teal-900/40"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold text-slate-900 dark:text-slate-100">
+                        {r.learnerName}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {r.language} · {r.durationMinutes} min
+                        {r.learnerLevel ? ` · ${LEVELS[r.learnerLevel as LevelCode]}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-sm text-slate-700 dark:text-slate-200">
+                    {when
+                      ? when.toLocaleString(undefined, {
+                          weekday: "short",
+                          month: "short",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })
+                      : ""}
+                  </p>
+                  {r.topic && (
+                    <p className="mt-1 text-sm italic text-slate-500 dark:text-slate-400">
+                      &ldquo;{r.topic}&rdquo;
+                    </p>
+                  )}
+                  {r.budgetMax !== undefined && r.budgetMax > 0 && (
+                    <p
+                      className={`mt-2 font-mono text-xs ${
+                        aboveBudget
+                          ? "text-amber-600 dark:text-amber-400"
+                          : "text-slate-500 dark:text-slate-400"
+                      }`}
+                    >
+                      Budget: up to ${r.budgetMax}/hr
+                      {aboveBudget && " — above your rate"}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    disabled={isClaiming}
+                    onClick={() => handleClaimRequest(r)}
+                    className="mt-4 w-full rounded-lg bg-gradient-to-r from-teal-400 to-cyan-400 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:shadow-[0_8px_24px_-8px_rgba(45,212,191,0.7)] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isClaiming ? "Claiming…" : "Claim session"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Upcoming Sessions */}
       {upcomingBookings.length > 0 && (
         <div>
@@ -497,18 +661,11 @@ function SpeakerDashboardContent() {
                   className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4"
                 >
                   <div className="flex items-center gap-3">
-                    {b.learnerProfile?.photoURL ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={b.learnerProfile.photoURL}
-                        alt=""
-                        className="h-11 w-11 rounded-full object-cover ring-1 ring-teal-100 dark:ring-teal-900/50"
-                      />
-                    ) : (
-                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 font-bold text-white">
-                        {b.learnerProfile?.displayName?.charAt(0).toUpperCase() ?? "?"}
-                      </div>
-                    )}
+                    <Avatar
+                      photoURL={b.learnerProfile?.photoURL}
+                      displayName={b.learnerProfile?.displayName}
+                      className="h-11 w-11 rounded-full ring-1 ring-teal-100 dark:ring-teal-900/50"
+                    />
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-medium text-slate-900 dark:text-slate-100">

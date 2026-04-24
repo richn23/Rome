@@ -97,8 +97,44 @@ export interface Booking {
   // Scheduled booking fields (null/undefined = instant)
   scheduledFor?: Timestamp | null;
   slotId?: string;
+  /** Present when the booking was created by a speaker claiming an open
+   *  learner-posted request (marketplace flow #1). */
+  requestId?: string;
   // Learner can ask to be pushed up a level for this session
   challengeUp?: boolean;
+}
+
+export type RequestStatus = "open" | "claimed" | "cancelled" | "expired";
+
+/**
+ * Marketplace flow #1 — a learner posts "I want a session at this time, any
+ * speaker." Speakers browse a board of open requests and claim one, which
+ * atomically turns the request into an admitted booking.
+ *
+ * Learner profile fields are denormalized onto the doc so speakers browsing
+ * the board don't need to fetch N user docs.
+ */
+export interface SessionRequest {
+  requestId: string;
+  learnerId: string;
+  // Denormalized learner fields (snapshot at post time)
+  learnerName: string;
+  learnerPhotoURL?: string;
+  learnerLevel?: LevelCode;
+  // When the learner wants the session
+  requestedFor: Timestamp;
+  durationMinutes: SlotDuration;
+  // Which language they want to practise
+  language: string;
+  topic?: string;
+  /** Optional max hourly rate — speakers above this see a grey-out hint. */
+  budgetMax?: number;
+  status: RequestStatus;
+  // Populated once a speaker claims
+  claimedBySpeakerId?: string;
+  claimedAt?: Timestamp;
+  bookingId?: string;
+  createdAt: Timestamp;
 }
 
 export type SlotDuration = 30 | 45;

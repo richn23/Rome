@@ -23,8 +23,10 @@ import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import RouteGuard from "@/components/RouteGuard";
-import { UserProfile, Session, Topic, AvailabilitySlot, Booking, LevelSignal, LEVELS, LevelCode } from "@/types";
+import { UserProfile, Session, Topic, AvailabilitySlot, Booking, LevelSignal, SessionRequest, Rating, LEVELS, LevelCode } from "@/types";
 import CountUp from "@/components/motion/CountUp";
+import PostRequestDialog from "@/components/PostRequestDialog";
+import Avatar from "@/components/Avatar";
 import toast from "react-hot-toast";
 
 const LEVEL_CODES: readonly LevelCode[] = ["1a", "1b", "2a", "2b", "3a", "3b", "4a", "4b"];
@@ -61,18 +63,12 @@ function SpeakerCard({
 
       <div className="flex items-center gap-3">
         <div className="relative shrink-0">
-          {speaker.photoURL ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={speaker.photoURL}
-              alt=""
-              className="h-12 w-12 rounded-xl object-cover ring-1 ring-teal-100 dark:ring-teal-900/50"
-            />
-          ) : (
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400 to-cyan-500 text-lg font-bold text-white shadow-sm">
-              {speaker.displayName.charAt(0).toUpperCase()}
-            </div>
-          )}
+          <Avatar
+            photoURL={speaker.photoURL}
+            displayName={speaker.displayName}
+            className="h-12 w-12 rounded-xl ring-1 ring-teal-100 dark:ring-teal-900/50"
+            textClassName="text-lg"
+          />
           {/* Status dot — breathes when online */}
           <span
             className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white dark:border-slate-900 ${dotColour} ${
@@ -176,6 +172,13 @@ function LearnerDashboardContent() {
   const [tab, setTab] = useState<"available" | "favourites" | "scheduled" | "history">("available");
   const [speakers, setSpeakers] = useState<UserProfile[]>([]);
   const [history, setHistory] = useState<Session[]>([]);
+  /* Hydrated speaker profiles for each session in history, keyed by uid */
+  const [historySpeakers, setHistorySpeakers] = useState<Record<string, UserProfile>>({});
+  /* All ratings the current learner has left, keyed by sessionId */
+  const [historyRatings, setHistoryRatings] = useState<Record<string, Rating>>({});
+  /* History tab filters — client-side only, over the existing history array */
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyDateRange, setHistoryDateRange] = useState<"all" | "7d" | "30d">("all");
   const [topics, setTopics] = useState<Topic[]>([]);
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [slotSpeakers, setSlotSpeakers] = useState<Record<string, UserProfile>>({});
@@ -196,6 +199,13 @@ function LearnerDashboardContent() {
   /* Scheduled slot confirm panel — tracks the slot currently being confirmed */
   const [confirmSlotId, setConfirmSlotId] = useState<string | null>(null);
   const [confirmChallengeUp, setConfirmChallengeUp] = useState(false);
+  /* Marketplace flow #1 — open/claimed session requests I've posted */
+  const [myRequests, setMyRequests] = useState<SessionRequest[]>([]);
+  const [postDialogOpen, setPostDialogOpen] = useState(false);
+  /* Track previously-seen open-request IDs so we can toast when one flips
+   * to claimed (happens when a speaker grabs it). */
+  const prevOpenRequestIds = useRef<Set<string>>(new Set());
+  const isInitialRequestLoad = useRef(true);
 
   useEffect(() => {
     const q = query(
@@ -230,9 +240,43 @@ function LearnerDashboardContent() {
         orderBy("endedAt", "desc")
       );
       const snap = await getDocs(q);
-      setHistory(snap.docs.map((d) => ({ sessionId: d.id, ...d.data() }) as Session));
+      const sessions = snap.docs.map(
+        (d) => ({ sessionId: d.id, ...d.data() }) as Session
+      );
+      setHistory(sessions);
+
+      // Hydrate speaker profiles for the rows — same pattern as bookingSpeakers.
+      const uniqueIds = Array.from(new Set(sessions.map((s) => s.speakerId)));
+      const profiles: Record<string, UserProfile> = {};
+      await Promise.all(
+        uniqueIds.map(async (uid) => {
+          const p = await getDoc(doc(db, "users", uid));
+          if (p.exists()) profiles[uid] = p.data() as UserProfile;
+        })
+      );
+      setHistorySpeakers(profiles);
     };
     fetchHistory();
+  }, [userProfile]);
+
+  /* Fetch this learner's own ratings in one query, keyed by sessionId so
+   * each history row can show the stars they gave that session. */
+  useEffect(() => {
+    if (!userProfile) return;
+    const fetchRatings = async () => {
+      const q = query(
+        collection(db, "ratings"),
+        where("learnerId", "==", userProfile.uid)
+      );
+      const snap = await getDocs(q);
+      const map: Record<string, Rating> = {};
+      snap.forEach((d) => {
+        const r = { ratingId: d.id, ...d.data() } as Rating;
+        map[r.sessionId] = r;
+      });
+      setHistoryRatings(map);
+    };
+    fetchRatings();
   }, [userProfile]);
 
   useEffect(() => {
@@ -296,6 +340,55 @@ function LearnerDashboardContent() {
     });
     return unsub;
   }, [userProfile?.uid]);
+
+  /* My posted requests — open + claimed, so the learner can see the status
+   * change when a speaker grabs one. Cancelled/expired ones drop out. */
+  useEffect(() => {
+    if (!userProfile?.uid) return;
+    const q = query(
+      collection(db, "requests"),
+      where("learnerId", "==", userProfile.uid),
+      where("status", "in", ["open", "claimed"])
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      const arr: SessionRequest[] = [];
+      snap.forEach((d) => arr.push({ requestId: d.id, ...d.data() } as SessionRequest));
+      arr.sort(
+        (a, b) =>
+          (a.requestedFor?.toMillis?.() ?? 0) - (b.requestedFor?.toMillis?.() ?? 0)
+      );
+
+      // Toast when one of our open requests flips to claimed
+      if (!isInitialRequestLoad.current) {
+        arr.forEach((r) => {
+          if (r.status === "claimed" && prevOpenRequestIds.current.has(r.requestId)) {
+            toast(`A speaker claimed your request — see Upcoming`, {
+              icon: "🎉",
+              duration: 7000,
+            });
+            prevOpenRequestIds.current.delete(r.requestId);
+          }
+        });
+      }
+      prevOpenRequestIds.current = new Set(
+        arr.filter((r) => r.status === "open").map((r) => r.requestId)
+      );
+      isInitialRequestLoad.current = false;
+
+      setMyRequests(arr);
+    });
+    return unsub;
+  }, [userProfile?.uid]);
+
+  const handleCancelRequest = async (r: SessionRequest) => {
+    if (!confirm("Cancel this request?")) return;
+    try {
+      await updateDoc(doc(db, "requests", r.requestId), { status: "cancelled" });
+      toast.success("Request cancelled");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not cancel");
+    }
+  };
 
   /* Favourites — subscribe to favourite IDs */
   useEffect(() => {
@@ -472,6 +565,39 @@ function LearnerDashboardContent() {
     return { totalSessions, totalMinutes };
   }, [history]);
 
+  /* History tab — client-side filter over the already-loaded history.
+   * `nowTick` (already used for "join now" buttons) is our time source so the
+   * memo stays pure — it recomputes every ~30s which is plenty accurate for
+   * "last 7/30 days" cutoffs. */
+  const filteredHistory = useMemo(() => {
+    const term = historySearch.trim().toLowerCase();
+    const cutoffDays =
+      historyDateRange === "7d" ? 7 : historyDateRange === "30d" ? 30 : null;
+    const cutoffMs =
+      cutoffDays !== null ? nowTick - cutoffDays * 24 * 60 * 60 * 1000 : null;
+
+    return history.filter((s) => {
+      if (cutoffMs !== null) {
+        const endedMs = s.endedAt?.toMillis?.() ?? 0;
+        if (endedMs < cutoffMs) return false;
+      }
+      if (term) {
+        const speakerName =
+          historySpeakers[s.speakerId]?.displayName?.toLowerCase() ?? "";
+        const topics = (s.topicsDiscussed ?? []).join(" ").toLowerCase();
+        if (!speakerName.includes(term) && !topics.includes(term)) return false;
+      }
+      return true;
+    });
+  }, [history, historySpeakers, historySearch, historyDateRange, nowTick]);
+
+  const historyFiltersActive =
+    historySearch.trim() !== "" || historyDateRange !== "all";
+  const clearHistoryFilters = () => {
+    setHistorySearch("");
+    setHistoryDateRange("all");
+  };
+
   /* Level suggestion based on signals from different speakers */
   const userLevel = userProfile?.level;
   const levelSuggestion = useMemo(() => {
@@ -638,6 +764,101 @@ function LearnerDashboardContent() {
         </div>
       </div>
 
+      {/* ========= Marketplace flow #1 — "Post a request" ========= */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500 text-base">
+                📣
+              </span>
+              <h3 className="font-display text-lg font-[500] text-slate-900 dark:text-slate-100">
+                Post a request
+              </h3>
+            </div>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Not picky about who? Post when you want a session and any speaker can claim it.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPostDialogOpen(true)}
+            className="shrink-0 rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:shadow-[0_8px_24px_-8px_rgba(45,212,191,0.7)]"
+          >
+            + Post a request
+          </button>
+        </div>
+
+        {myRequests.length > 0 && (
+          <div className="mt-5 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              Your open requests
+            </p>
+            {myRequests.map((r) => {
+              const when = r.requestedFor?.toDate?.();
+              const claimed = r.status === "claimed";
+              return (
+                <div
+                  key={r.requestId}
+                  className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 ${
+                    claimed
+                      ? "border-green-300/60 bg-green-50 dark:border-green-900/50 dark:bg-green-900/15"
+                      : "border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/60"
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                      {r.language} · {r.durationMinutes} min
+                      {r.topic && <span className="text-slate-500 dark:text-slate-400"> · {r.topic}</span>}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {when
+                        ? when.toLocaleString(undefined, {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })
+                        : ""}
+                      {r.budgetMax ? ` · up to $${r.budgetMax}/hr` : ""}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        claimed
+                          ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+                          : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                      }`}
+                    >
+                      {claimed ? "Claimed ✓" : "Open"}
+                    </span>
+                    {!claimed && (
+                      <button
+                        type="button"
+                        onClick={() => handleCancelRequest(r)}
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-red-950/40"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {userProfile && (
+        <PostRequestDialog
+          open={postDialogOpen}
+          onClose={() => setPostDialogOpen(false)}
+          learner={userProfile}
+        />
+      )}
+
       {/* Upcoming bookings */}
       {myBookings.length > 0 && (
         <div>
@@ -662,18 +883,11 @@ function LearnerDashboardContent() {
                   className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm"
                 >
                   <div className="flex items-center gap-4">
-                    {sp?.photoURL ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={sp.photoURL}
-                        alt=""
-                        className="h-12 w-12 rounded-full object-cover ring-1 ring-teal-100"
-                      />
-                    ) : (
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 font-bold text-white">
-                        {sp?.displayName?.charAt(0).toUpperCase() ?? "?"}
-                      </div>
-                    )}
+                    <Avatar
+                      photoURL={sp?.photoURL}
+                      displayName={sp?.displayName}
+                      className="h-12 w-12 rounded-full ring-1 ring-teal-100"
+                    />
                     <div>
                       <p className="font-semibold text-slate-900 dark:text-slate-100">
                         {sp?.displayName ?? "Speaker"}
@@ -979,29 +1193,130 @@ function LearnerDashboardContent() {
         {tab === "history" && (
           <div>
             {history.length === 0 ? (
+              // Genuine empty state — learner has never had a session.
               <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 py-12 px-6 text-center text-slate-500 dark:text-slate-400">
                 <p>No sessions yet. Book your first conversation!</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {history.map((s) => (
-                  <Link
-                    key={s.sessionId}
-                    href={`/sessions/${s.sessionId}`}
-                    className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 transition hover:-translate-y-0.5 hover:shadow-md"
-                  >
-                    <div>
-                      <p className="font-medium text-slate-900 dark:text-slate-100">Session #{s.sessionId.slice(0, 8)}</p>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        {s.durationMinutes ?? 0} min &middot; {s.endedAt?.toDate?.()?.toLocaleDateString() ?? ""}
-                      </p>
+              <>
+                {/* Filter bar — search + date range */}
+                <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                  <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                    <input
+                      type="text"
+                      value={historySearch}
+                      onChange={(e) => setHistorySearch(e.target.value)}
+                      placeholder="Search speaker or topic..."
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-600"
+                    />
+                    <select
+                      value={historyDateRange}
+                      onChange={(e) =>
+                        setHistoryDateRange(e.target.value as "all" | "7d" | "30d")
+                      }
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                    >
+                      <option value="all" className="bg-white dark:bg-slate-900">All time</option>
+                      <option value="7d" className="bg-white dark:bg-slate-900">Last 7 days</option>
+                      <option value="30d" className="bg-white dark:bg-slate-900">Last 30 days</option>
+                    </select>
+                  </div>
+                  {historyFiltersActive && (
+                    <div className="mt-3 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                      <span>
+                        {filteredHistory.length} of {history.length} sessions match
+                      </span>
+                      <button
+                        type="button"
+                        onClick={clearHistoryFilters}
+                        className="font-medium text-teal-700 hover:text-teal-800 dark:text-teal-300 dark:hover:text-teal-200"
+                      >
+                        Clear filters
+                      </button>
                     </div>
-                    <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs text-slate-600 dark:text-slate-300 capitalize">
-                      {s.status}
-                    </span>
-                  </Link>
-                ))}
-              </div>
+                  )}
+                </div>
+
+                {filteredHistory.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 py-12 px-6 text-center">
+                    <h3 className="mb-1 font-semibold text-slate-700 dark:text-slate-200">
+                      No sessions match your filter
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={clearHistoryFilters}
+                      className="mt-2 text-sm font-medium text-teal-700 hover:text-teal-800 dark:text-teal-300 dark:hover:text-teal-200"
+                    >
+                      Clear filters
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredHistory.map((s) => {
+                      const sp = historySpeakers[s.speakerId];
+                      const rating = historyRatings[s.sessionId];
+                      const endedAt = s.endedAt?.toDate?.();
+                      const topics = s.topicsDiscussed ?? [];
+                      return (
+                        <Link
+                          key={s.sessionId}
+                          href={`/sessions/${s.sessionId}`}
+                          className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 transition hover:-translate-y-0.5 hover:border-teal-400/40 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-teal-400/30"
+                        >
+                          {/* Avatar — same pattern as SpeakerCard */}
+                          <Avatar
+                            photoURL={sp?.photoURL}
+                            displayName={sp?.displayName}
+                            className="h-12 w-12 shrink-0 rounded-xl ring-1 ring-teal-100 dark:ring-teal-900/50"
+                            textClassName="text-lg"
+                          />
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="truncate font-semibold text-slate-900 dark:text-slate-100">
+                                {sp?.displayName ?? "Speaker"}
+                              </p>
+                              {rating && (
+                                <span
+                                  className="shrink-0 font-mono text-xs text-amber-500"
+                                  aria-label={`You rated ${rating.score} out of 5`}
+                                  title={`You rated ${rating.score}/5`}
+                                >
+                                  {"★".repeat(rating.score)}
+                                  <span className="text-slate-300 dark:text-slate-700">
+                                    {"★".repeat(5 - rating.score)}
+                                  </span>
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              {endedAt ? endedAt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }) : ""}
+                              {typeof s.durationMinutes === "number" ? ` · ${s.durationMinutes} min` : ""}
+                            </p>
+                            {topics.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                {topics.slice(0, 2).map((t) => (
+                                  <span
+                                    key={t}
+                                    className="rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-medium text-teal-700 dark:bg-teal-900/30 dark:text-teal-300"
+                                  >
+                                    {t}
+                                  </span>
+                                ))}
+                                {topics.length > 2 && (
+                                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                    +{topics.length - 2}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}

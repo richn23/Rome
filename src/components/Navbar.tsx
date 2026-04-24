@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Avatar from "@/components/Avatar";
 import toast from "react-hot-toast";
 
 export default function Navbar() {
@@ -31,9 +32,15 @@ export default function Navbar() {
           href={userProfile ? `/dashboard/${userProfile.role}` : "/"}
           className="group flex items-center gap-2"
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500 font-bold text-white shadow-md shadow-teal-500/30 transition group-hover:shadow-teal-400/50">
-            S
-          </div>
+          {/* Brand mark — plain <img> (SVG, no Next.js Image optimization needed). */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-mark.svg"
+            alt="SpeakSpace"
+            width={32}
+            height={32}
+            className="h-8 w-8 transition group-hover:opacity-90"
+          />
           <h1 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
             SpeakSpace
           </h1>
@@ -66,18 +73,12 @@ export default function Navbar() {
             href={profileHref}
             className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-slate-700 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
           >
-            {userProfile.photoURL ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={userProfile.photoURL}
-                alt=""
-                className="h-7 w-7 rounded-full object-cover"
-              />
-            ) : (
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 text-xs font-bold text-white">
-                {userProfile.displayName?.charAt(0).toUpperCase() || "?"}
-              </span>
-            )}
+            <Avatar
+              photoURL={userProfile.photoURL}
+              displayName={userProfile.displayName}
+              className="h-7 w-7 rounded-full"
+              textClassName="text-xs"
+            />
             <span className="hidden sm:inline">{userProfile.displayName}</span>
           </Link>
         )}

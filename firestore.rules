@@ -1,9 +1,22 @@
 rules_version = '2';
 
+// =============================================================================
+// SpeakSpace Firestore security rules
+//
+// Design notes:
+//   - Default-deny at the end of the file.
+//   - `userRole()` reads the caller's own user doc to drive role-based access.
+//     This costs one read per evaluated rule that uses it; fine at current
+//     scale. If it becomes hot, move role onto custom auth claims.
+//   - The `users/{userId}` update rule explicitly forbids self-mutation of
+//     role / uid / email so a learner can't escalate themselves to admin.
+// =============================================================================
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // -------------------------------------------------------------------
     // Helpers
+    // -------------------------------------------------------------------
     function isSignedIn() {
       return request.auth != null;
     }
@@ -13,26 +26,66 @@ service cloud.firestore {
     function userRole() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
+    function isAdmin() {
+      return isSignedIn() && userRole() == "admin";
+    }
+    // Fields that must never be self-edited on a user doc (role ceiling).
+    function protectedUserFields() {
+      return ["role", "uid", "email"];
+    }
+    // Keys that changed between old and new resource.data.
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
 
+    // =====================================================================
     // USERS
-    // Anyone signed in can read a profile (needed to browse speakers).
-    // Only the owner can create/update their own profile.
-    // No one can delete profiles from the client.
+    // =====================================================================
+    // Read: any signed-in user (needed to browse speakers).
+    // Create: only the owner creating their own profile.
+    // Update:
+    //   - Owner may update any field EXCEPT role/uid/email
+    //   - Admins may update anything
+    //   - Any signed-in user may update ONLY `rating` or `totalSessions` on
+    //     another user's doc, so the learner end-of-session flow can bump
+    //     the speaker's running average. Narrowly scoped to those two fields.
+    //     Known trade-off: a malicious client can tamper with speaker ratings;
+    //     for MVP this is acceptable, move to Cloud Function later.
+    // Delete: never from the client.
     match /users/{userId} {
       allow read: if isSignedIn();
       allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
+      allow update: if (
+        isOwner(userId)
+          && !changedKeys().hasAny(protectedUserFields())
+      ) || isAdmin() || (
+        isSignedIn()
+          && changedKeys().hasOnly(["rating", "totalSessions"])
+      );
       allow delete: if false;
     }
 
+    // A learner's private favourites list — only the learner themselves.
+    match /users/{userId}/favourites/{favId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // =====================================================================
     // BOOKINGS
-    // A booking is readable and writable only by the learner or speaker involved.
+    // =====================================================================
+    // Readable and writable only by the learner or speaker on the doc.
     match /bookings/{bookingId} {
       allow read: if isSignedIn() && (
         request.auth.uid == resource.data.learnerId ||
         request.auth.uid == resource.data.speakerId
       );
-      allow create: if isSignedIn() && request.auth.uid == request.resource.data.learnerId;
+      allow create: if isSignedIn() && (
+        // Learner creating their own booking (direct request path)
+        request.auth.uid == request.resource.data.learnerId ||
+        // Speaker creating an admitted booking on behalf of a learner
+        // (marketplace claim path — the request transaction writes this)
+        request.auth.uid == request.resource.data.speakerId
+      );
       allow update: if isSignedIn() && (
         request.auth.uid == resource.data.learnerId ||
         request.auth.uid == resource.data.speakerId
@@ -40,9 +93,11 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // SESSIONS (video call records)
-    // NOTE: sessions store the learner roster as `learnerIds` (array), not
-    // `learnerId`. Using `in` here is what actually matches the schema.
+    // =====================================================================
+    // SESSIONS (live call records)
+    // =====================================================================
+    // Sessions store the learner roster as `learnerIds` (array), not
+    // `learnerId`. Use `in` against the array.
     match /sessions/{sessionId} {
       allow read: if isSignedIn() && (
         request.auth.uid in resource.data.learnerIds ||
@@ -55,10 +110,107 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // HANDOFFS
-    // Cross-speaker handoff notes for a learner. Readable by any signed-in
-    // speaker (so the next teacher can catch up) and by the learner the note
-    // is about. Only the authoring speaker can create. Immutable after that.
+    // In-call chat messages. Rules evaluate independently from the parent
+    // session doc, so we must look the parent up.
+    match /sessions/{sessionId}/messages/{messageId} {
+      allow read, create: if isSignedIn() && (
+        request.auth.uid in
+          get(/databases/$(database)/documents/sessions/$(sessionId)).data.learnerIds ||
+        request.auth.uid ==
+          get(/databases/$(database)/documents/sessions/$(sessionId)).data.speakerId
+      );
+      allow update, delete: if false;
+    }
+
+    // =====================================================================
+    // TOPICS — admin-curated conversation topics
+    // =====================================================================
+    match /topics/{topicId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // =====================================================================
+    // RATINGS — learner's post-session feedback on a speaker
+    // =====================================================================
+    // Readable by any signed-in user (speaker averages are a public surface).
+    // Create/update scoped to the learner who authored the rating.
+    match /ratings/{ratingId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+                    && request.auth.uid == request.resource.data.learnerId;
+      allow update: if isSignedIn()
+                    && request.auth.uid == resource.data.learnerId;
+      allow delete: if false;
+    }
+
+    // =====================================================================
+    // AVAILABILITY — bookable slots published by speakers
+    // =====================================================================
+    // Readable by any signed-in user (learners browse the scheduled tab).
+    // Write is restricted to the owning speaker; a learner claiming a slot
+    // goes through a transaction that only flips status + bookingId.
+    match /availability/{slotId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+                    && request.auth.uid == request.resource.data.speakerId;
+      allow update: if isSignedIn() && (
+        // Speaker managing their own slot
+        request.auth.uid == resource.data.speakerId ||
+        // Any signed-in user (learner) claiming a slot — atomic with booking
+        // creation in the client transaction. Narrow: only status + bookingId.
+        changedKeys().hasOnly(["status", "bookingId"])
+      );
+      allow delete: if false;
+    }
+
+    // =====================================================================
+    // RECURRENCE — weekly availability rules owned by a speaker
+    // =====================================================================
+    match /recurrence/{recurrenceId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+                    && request.auth.uid == request.resource.data.speakerId;
+      allow update, delete: if isSignedIn()
+                             && request.auth.uid == resource.data.speakerId;
+    }
+
+    // =====================================================================
+    // REQUESTS (marketplace flow #1: learner-posted open session requests)
+    // =====================================================================
+    // - Learner owns the request. They can create and cancel their own.
+    // - While status == "open", any signed-in speaker can read it (browse
+    //   board) and atomically update it to "claimed" by setting themselves
+    //   as claimedBySpeakerId.
+    // - Once claimed, only the learner and the claiming speaker can read.
+    match /requests/{requestId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == resource.data.learnerId ||
+        request.auth.uid == resource.data.claimedBySpeakerId ||
+        (resource.data.status == "open" && userRole() == "speaker")
+      );
+      allow create: if isSignedIn()
+                    && request.auth.uid == request.resource.data.learnerId
+                    && request.resource.data.status == "open";
+      allow update: if isSignedIn() && (
+        // Learner cancelling their own request
+        (request.auth.uid == resource.data.learnerId
+          && request.resource.data.status == "cancelled") ||
+        // Speaker claiming an open request
+        (userRole() == "speaker"
+          && resource.data.status == "open"
+          && request.resource.data.status == "claimed"
+          && request.resource.data.claimedBySpeakerId == request.auth.uid)
+      );
+      allow delete: if false;
+    }
+
+    // =====================================================================
+    // HANDOFFS — cross-speaker handoff notes for a learner
+    // =====================================================================
+    // Readable by any signed-in speaker (so the next teacher can catch up)
+    // and by the learner the note is about. Only the authoring speaker can
+    // create. Immutable after that.
     match /handoffs/{handoffId} {
       allow read: if isSignedIn() && (
         userRole() == "speaker" ||
@@ -69,21 +221,24 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // REVIEWS
-    // Reviews are publicly readable (to show speaker ratings).
-    // Only the learner who owned the session can create a review.
-    match /reviews/{reviewId} {
-      allow read: if true;
-      allow create: if isSignedIn() && request.auth.uid == request.resource.data.learnerId;
-      allow update: if isSignedIn() && request.auth.uid == resource.data.learnerId;
-      allow delete: if false;
+    // =====================================================================
+    // LEVEL SIGNALS — speaker's per-session signal about a learner's level
+    // =====================================================================
+    // Created by the speaker at session end; readable by the learner and the
+    // writing speaker. Immutable.
+    match /levelSignals/{signalId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == resource.data.learnerId ||
+        request.auth.uid == resource.data.speakerId
+      );
+      allow create: if isSignedIn()
+                    && request.auth.uid == request.resource.data.speakerId;
+      allow update, delete: if false;
     }
 
-    // RESOURCES
-    // Speaker-shared resource folder. Readable by any signed-in user
-    // (so speakers and admin can see the library). A speaker or admin can
-    // create a resource where they are the uploader. Uploader or admin can
-    // delete. No updates from the client for now.
+    // =====================================================================
+    // RESOURCES — shared speaker library
+    // =====================================================================
     match /resources/{resourceId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn()
@@ -92,18 +247,18 @@ service cloud.firestore {
       allow update: if false;
       allow delete: if isSignedIn() && (
         request.auth.uid == resource.data.uploaderUid ||
-        userRole() == "admin"
+        isAdmin()
       );
     }
 
-    // GUIDANCE
-    // Help/rules/FAQ articles for speakers and learners. Anyone signed in
-    // can read. Only admin can write (seed, edit, delete).
+    // =====================================================================
+    // GUIDANCE — admin-authored help articles
+    // =====================================================================
     match /guidance/{docId} {
       allow read: if isSignedIn();
-      allow create, update, delete: if isSignedIn() && userRole() == "admin";
+      allow create, update, delete: if isAdmin();
     }
 
-    // Default deny — anything not listed above is blocked.
+    // Default-deny. Anything not matched above is blocked.
   }
 }

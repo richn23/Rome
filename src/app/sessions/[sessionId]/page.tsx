@@ -13,6 +13,7 @@ import {
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import RouteGuard from "@/components/RouteGuard";
+import Avatar from "@/components/Avatar";
 import { Session, UserProfile, Topic, Rating } from "@/types";
 
 function SessionDetailsContent({ sessionId }: { sessionId: string }) {
@@ -122,18 +123,12 @@ function SessionDetailsContent({ sessionId }: { sessionId: string }) {
           href={`/speakers/${speaker.uid}`}
           className="flex items-center gap-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition"
         >
-          {speaker.photoURL ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={speaker.photoURL}
-              alt=""
-              className="h-14 w-14 rounded-full object-cover ring-1 ring-teal-100 dark:ring-teal-900/50"
-            />
-          ) : (
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 text-xl font-bold text-white">
-              {speaker.displayName.charAt(0).toUpperCase()}
-            </div>
-          )}
+          <Avatar
+            photoURL={speaker.photoURL}
+            displayName={speaker.displayName}
+            className="h-14 w-14 rounded-full ring-1 ring-teal-100 dark:ring-teal-900/50"
+            textClassName="text-xl"
+          />
           <div className="flex-1">
             <p className="font-semibold text-slate-900 dark:text-slate-100">{speaker.displayName}</p>
             {speaker.nativeLanguage && (

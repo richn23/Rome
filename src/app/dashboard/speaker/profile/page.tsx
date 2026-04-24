@@ -29,7 +29,7 @@ const LANGUAGES = [
 ];
 
 function SpeakerProfileContent() {
-  const { userProfile } = useAuth();
+  const { userProfile, refreshProfile } = useAuth();
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [photoURL, setPhotoURL] = useState("");
@@ -78,6 +78,7 @@ function SpeakerProfileContent() {
         hourlyRate,
         awayMode,
       });
+      await refreshProfile();
       toast.success("Profile saved");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save");

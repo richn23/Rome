@@ -29,7 +29,7 @@ const LANGUAGES = [
 ];
 
 function ProfileContent() {
-  const { userProfile } = useAuth();
+  const { userProfile, refreshProfile } = useAuth();
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [photoURL, setPhotoURL] = useState("");
@@ -75,6 +75,7 @@ function ProfileContent() {
         learningLanguage: learningLanguage || "",
         level,
       });
+      await refreshProfile();
       toast.success("Profile saved");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save");
