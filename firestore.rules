@@ -255,6 +255,18 @@ service cloud.firestore {
     }
 
     // =====================================================================
+    // POLICIES — terms, privacy, code of conduct, refund policy, etc.
+    // =====================================================================
+    // Public read: GDPR/legal — visitors must be able to view terms before
+    // signing up. The fileURL points at Firebase Storage (public download
+    // URL) so the doc itself must also be readable without auth.
+    // Writes are admin-only.
+    match /policies/{policyId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // =====================================================================
     // GUIDANCE — admin-authored help articles
     // =====================================================================
     match /guidance/{docId} {

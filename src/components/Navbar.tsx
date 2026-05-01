@@ -87,6 +87,12 @@ export default function Navbar() {
             <span className="hidden sm:inline">{userProfile.displayName}</span>
           </Link>
         )}
+        <Link
+          href="/policies"
+          className="hidden shrink-0 whitespace-nowrap rounded-lg px-2 py-2 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 sm:inline-block"
+        >
+          Policies
+        </Link>
         <button
           onClick={handleLogout}
           className="shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 sm:px-4"

@@ -37,6 +37,8 @@ export interface UserProfile {
   totalSessions?: number;
   introVideoURL?: string;
   awayMode?: boolean;
+  /** Set true by an admin to lock the user out — RouteGuard bounces to /suspended. */
+  suspended?: boolean;
   createdAt: Timestamp;
 }
 
@@ -220,6 +222,25 @@ export interface Resource {
   contentType: string;
   tags?: string[];
   createdAt: Timestamp;
+}
+
+/**
+ * A policy document (terms, privacy, code of conduct, refund policy, etc.).
+ * Slugs are admin-defined. Multiple versions per slug are kept; only one has
+ * `isCurrent: true` per slug.
+ */
+export interface Policy {
+  policyId: string;
+  slug: string;
+  title: string;
+  fileURL: string;
+  storagePath: string;
+  fileName: string;
+  version: string;
+  effectiveDate: Timestamp;
+  uploadedBy: string;
+  uploadedAt: Timestamp;
+  isCurrent: boolean;
 }
 
 export type GuidanceAudience = "speaker" | "learner";

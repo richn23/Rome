@@ -24,6 +24,10 @@ export default function RouteGuard({ allowedRole, children }: RouteGuardProps) {
       router.replace("/login");
       return;
     }
+    if (userProfile?.suspended) {
+      router.replace("/suspended");
+      return;
+    }
     if (userProfile && !isAllowed(userProfile.role, allowedRole)) {
       router.replace(`/dashboard/${userProfile.role}`);
     }
@@ -37,7 +41,12 @@ export default function RouteGuard({ allowedRole, children }: RouteGuardProps) {
     );
   }
 
-  if (!user || !userProfile || !isAllowed(userProfile.role, allowedRole)) {
+  if (
+    !user ||
+    !userProfile ||
+    userProfile.suspended ||
+    !isAllowed(userProfile.role, allowedRole)
+  ) {
     return null;
   }
 
