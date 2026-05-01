@@ -45,6 +45,15 @@ export default function SignupPage() {
   const { signup, loginWithGoogle } = useAuth();
   const router = useRouter();
 
+  /** Skip the `/` landing-page hop — route straight to the user's dashboard
+   *  so they don't see a flash of the marketing page on first sign-in. */
+  const destForRole = (r: UserRole) =>
+    r === "admin"
+      ? "/dashboard/admin"
+      : r === "speaker"
+      ? "/dashboard/speaker"
+      : "/dashboard/learner";
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -57,7 +66,7 @@ export default function SignupPage() {
         role === "learner" ? level : undefined,
         { nativeLanguage, learningLanguage: role === "learner" ? learningLanguage : undefined }
       );
-      router.push("/");
+      router.push(destForRole(role));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Signup failed");
     } finally {
@@ -68,8 +77,10 @@ export default function SignupPage() {
   const handleGoogle = async () => {
     setGoogleSubmitting(true);
     try {
-      await loginWithGoogle(role, role === "learner" ? level : undefined);
-      router.push("/");
+      const profile = await loginWithGoogle(role, role === "learner" ? level : undefined);
+      // Existing Google users keep whatever role their profile says; new ones
+      // take the selected role from the signup form.
+      router.push(destForRole((profile?.role as UserRole) ?? role));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Google sign-in failed");
     } finally {

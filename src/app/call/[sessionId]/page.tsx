@@ -18,6 +18,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { Session, ChatMessage, UserProfile, Topic, LevelSignalType, LEVELS, LevelCode, Handoff } from "@/types";
+import { computeSessionClose } from "@/lib/sessionClose";
 import toast from "react-hot-toast";
 
 export default function CallRoomPage({
@@ -148,14 +149,10 @@ export default function CallRoomPage({
 
   const endSession = async () => {
     if (!session || !user) return;
-    const startedAt = session.startedAt?.toDate?.() ?? new Date();
-    const now = new Date();
-    const durationMinutes = Math.max(1, Math.round((now.getTime() - startedAt.getTime()) / 60000));
-    // Calculate payment fields (placeholder rates)
-    const hourlyRate = 15; // Default
-    const amountCharged = parseFloat(((hourlyRate / 60) * durationMinutes).toFixed(2));
-    const platformCut = parseFloat((amountCharged * 0.2).toFixed(2));
-    const speakerPayout = parseFloat((amountCharged - platformCut).toFixed(2));
+    // Shared helper caps duration at 3h so zombie sessions can't produce
+    // nonsense payment numbers like "10222 minutes".
+    const startedAt = session.startedAt?.toDate?.() ?? null;
+    const closeNumbers = computeSessionClose(startedAt);
 
     // Single write covers close-out fields + (if present) the speaker's
     // in-call notes. Avoids two round trips.
@@ -163,10 +160,7 @@ export default function CallRoomPage({
       status: "ended",
       endedAt: serverTimestamp(),
       endedBy: user.uid,
-      durationMinutes,
-      amountCharged,
-      platformCut,
-      speakerPayout,
+      ...closeNumbers,
       ...(isSpeaker && speakerNotes.trim()
         ? { speakerNotes: speakerNotes.trim() }
         : {}),

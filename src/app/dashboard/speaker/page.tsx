@@ -24,6 +24,7 @@ import RouteGuard from "@/components/RouteGuard";
 import { SpeakerStatus, Booking, Session, UserProfile, Rating, SessionRequest, LEVELS, LevelCode } from "@/types";
 import CountUp from "@/components/motion/CountUp";
 import Avatar from "@/components/Avatar";
+import { computeSessionClose } from "@/lib/sessionClose";
 import toast from "react-hot-toast";
 
 function SpeakerDashboardContent() {
@@ -249,7 +250,10 @@ function SpeakerDashboardContent() {
   const handleAdmit = async (booking: Booking) => {
     if (!userProfile) return;
 
-    // If there's an active session, add learner to it (3-way support)
+    // If there's an active session, add learner to it (3-way support).
+    // We also navigate the speaker into the call — previously this branch
+    // stranded them on the dashboard while the learner's waiting room auto-
+    // jumped into the call, which looked like a hang on the speaker side.
     if (activeSession && activeSession.learnerIds.length < 2) {
       const updatedLearnerIds = [...activeSession.learnerIds, booking.learnerId];
       await updateDoc(doc(db, "sessions", activeSession.sessionId), {
@@ -260,6 +264,7 @@ function SpeakerDashboardContent() {
         sessionId: activeSession.sessionId,
       });
       toast.success("Learner added to active session!");
+      router.push(`/call/${activeSession.sessionId}`);
       return;
     }
 
@@ -285,6 +290,40 @@ function SpeakerDashboardContent() {
     await updateDoc(doc(db, "bookings", booking.bookingId), {
       status: "rejected",
     });
+  };
+
+  /**
+   * Close out a zombie/orphan "active" session from the dashboard banner.
+   * Mirrors the call page's endSession logic — same shared helper, same
+   * fields on the session doc, and also flips the speaker's own status back
+   * to "online" so their dashboard stops showing "busy".
+   */
+  const [endingOrphan, setEndingOrphan] = useState(false);
+  const handleEndOrphanSession = async () => {
+    if (!activeSession || !userProfile) return;
+    if (!confirm("End this session? This can't be undone.")) return;
+    setEndingOrphan(true);
+    try {
+      const startedAt = activeSession.startedAt?.toDate?.() ?? null;
+      const closeNumbers = computeSessionClose(startedAt);
+      await updateDoc(doc(db, "sessions", activeSession.sessionId), {
+        status: "ended",
+        endedAt: serverTimestamp(),
+        endedBy: userProfile.uid,
+        ...closeNumbers,
+      });
+      await updateDoc(doc(db, "users", userProfile.uid), {
+        status: "online",
+        totalSessions: (userProfile.totalSessions ?? 0) + 1,
+      });
+      setStatus("online");
+      toast.success("Session ended");
+      // activeSession will clear via the snapshot listener
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not end session");
+    } finally {
+      setEndingOrphan(false);
+    }
   };
 
   /* Cancel an upcoming booking (speaker side) */
@@ -337,6 +376,48 @@ function SpeakerDashboardContent() {
 
   return (
     <div className="space-y-6">
+      {/* Zombie-session banner — shows when Firestore has an `active` session
+          for this speaker. Happens if they closed the tab / crashed mid-call
+          without clicking End. Gives them a way to rejoin or end cleanly. */}
+      {activeSession && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm dark:border-amber-700/60 dark:bg-amber-900/20 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span
+              aria-hidden="true"
+              className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-200 text-base dark:bg-amber-900/60"
+            >
+              ⚠️
+            </span>
+            <div className="min-w-0">
+              <p className="font-semibold text-amber-900 dark:text-amber-100">
+                You have a session in progress
+              </p>
+              <p className="text-sm text-amber-800/90 dark:text-amber-200/80">
+                Rejoin to continue, or end it if you&apos;ve already finished.
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 gap-2 sm:self-center">
+            <button
+              type="button"
+              onClick={() => router.push(`/call/${activeSession.sessionId}`)}
+              disabled={endingOrphan}
+              className="flex-1 whitespace-nowrap rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
+            >
+              Rejoin
+            </button>
+            <button
+              type="button"
+              onClick={handleEndOrphanSession}
+              disabled={endingOrphan}
+              className="flex-1 whitespace-nowrap rounded-lg border border-amber-400 bg-white px-4 py-2 text-sm font-medium text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-700/60 dark:bg-slate-900 dark:text-amber-100 dark:hover:bg-slate-800 sm:flex-none"
+            >
+              {endingOrphan ? "Ending…" : "End it"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Hero banner */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 text-white shadow-xl md:p-10">
         <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-teal-400/20 blur-3xl" />

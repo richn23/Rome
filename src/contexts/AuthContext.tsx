@@ -31,7 +31,9 @@ interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  /** Returns the loaded profile so the caller can route directly to the
+   *  role-specific dashboard without waiting for React state to propagate. */
+  login: (email: string, password: string) => Promise<UserProfile | null>;
   signup: (
     email: string,
     password: string,
@@ -39,8 +41,8 @@ interface AuthContextType {
     role: UserRole,
     level?: LevelCode,
     extras?: SignupExtras
-  ) => Promise<void>;
-  loginWithGoogle: (role?: UserRole, level?: LevelCode) => Promise<void>;
+  ) => Promise<UserProfile | null>;
+  loginWithGoogle: (role?: UserRole, level?: LevelCode) => Promise<UserProfile | null>;
   logout: () => Promise<void>;
   /** Re-reads the current user's Firestore profile into state. Used after
    *  direct doc mutations (e.g. promote-self-to-admin in /seed). */
@@ -82,10 +84,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsubscribe;
   }, [devBypass, authAvailable]);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<UserProfile | null> => {
     if (devBypass) {
       toast("Dev auth bypass is on — Firebase sign-in is skipped.", { icon: "🔧" });
-      return;
+      return null;
     }
     if (!authAvailable) {
       throw new Error("Firebase Auth is not configured. Set NEXT_PUBLIC_FIREBASE_API_KEY.");
@@ -98,8 +100,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const docRef = doc(db, "users", cred.user.uid);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
-      setUserProfile(docSnap.data() as UserProfile);
+      const profile = docSnap.data() as UserProfile;
+      setUserProfile(profile);
+      return profile;
     }
+    return null;
   };
 
   const signup = async (
@@ -109,10 +114,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role: UserRole,
     level?: LevelCode,
     extras?: SignupExtras
-  ) => {
+  ): Promise<UserProfile | null> => {
     if (devBypass) {
       toast("Dev auth bypass is on — Firebase sign-up is skipped.", { icon: "🔧" });
-      return;
+      return null;
     }
     if (!authAvailable) {
       throw new Error("Firebase Auth is not configured. Set NEXT_PUBLIC_FIREBASE_API_KEY.");
@@ -141,12 +146,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     await setDoc(doc(db, "users", cred.user.uid), profile);
     setUserProfile(profile);
+    return profile;
   };
 
-  const loginWithGoogle = async (role: UserRole = "learner", level: LevelCode = "1a") => {
+  const loginWithGoogle = async (role: UserRole = "learner", level: LevelCode = "1a"): Promise<UserProfile | null> => {
     if (devBypass) {
       toast("Dev auth bypass is on — Firebase sign-in is skipped.", { icon: "🔧" });
-      return;
+      return null;
     }
     if (!authAvailable) {
       throw new Error("Firebase Auth is not configured. Set NEXT_PUBLIC_FIREBASE_API_KEY.");
@@ -163,8 +169,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
-      setUserProfile(docSnap.data() as UserProfile);
-      return;
+      const existing = docSnap.data() as UserProfile;
+      setUserProfile(existing);
+      return existing;
     }
 
     // New Google user — create a default profile
@@ -183,6 +190,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     await setDoc(docRef, profile);
     setUserProfile(profile);
+    return profile;
   };
 
   const logout = async () => {

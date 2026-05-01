@@ -14,12 +14,22 @@ export default function LoginPage() {
   const { login, loginWithGoogle } = useAuth();
   const router = useRouter();
 
+  /** Skip the `/` landing-page hop — route straight to the user's dashboard
+   *  using the profile returned from login. Removes a visible layout flash
+   *  between login submit and dashboard mount. */
+  const destForProfile = (role: string | undefined) =>
+    role === "admin"
+      ? "/dashboard/admin"
+      : role === "speaker"
+      ? "/dashboard/speaker"
+      : "/dashboard/learner";
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await login(email, password);
-      router.push("/");
+      const profile = await login(email, password);
+      router.push(destForProfile(profile?.role));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -30,8 +40,8 @@ export default function LoginPage() {
   const handleGoogle = async () => {
     setGoogleSubmitting(true);
     try {
-      await loginWithGoogle();
-      router.push("/");
+      const profile = await loginWithGoogle();
+      router.push(destForProfile(profile?.role));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Google sign-in failed");
     } finally {

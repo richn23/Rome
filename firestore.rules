@@ -74,8 +74,10 @@ service cloud.firestore {
     // BOOKINGS
     // =====================================================================
     // Readable and writable only by the learner or speaker on the doc.
+    // Admins may read any booking (admin dashboard).
     match /bookings/{bookingId} {
       allow read: if isSignedIn() && (
+        isAdmin() ||
         request.auth.uid == resource.data.learnerId ||
         request.auth.uid == resource.data.speakerId
       );
@@ -100,6 +102,7 @@ service cloud.firestore {
     // `learnerId`. Use `in` against the array.
     match /sessions/{sessionId} {
       allow read: if isSignedIn() && (
+        isAdmin() ||
         request.auth.uid in resource.data.learnerIds ||
         request.auth.uid == resource.data.speakerId
       );

@@ -28,6 +28,14 @@ function AdminDashboardContent() {
   const [guidanceDocs, setGuidanceDocs] = useState<GuidanceDoc[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showTopicForm, setShowTopicForm] = useState(false);
+  /* Per-tab fetch errors — one failure shouldn't blank the others */
+  const [tabErrors, setTabErrors] = useState<{
+    users?: string;
+    topics?: string;
+    sessions?: string;
+    resources?: string;
+    guidance?: string;
+  }>({});
   /* Guidance editor state */
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -44,34 +52,76 @@ function AdminDashboardContent() {
   const [topicVocab, setTopicVocab] = useState("");
 
   const refreshResources = async () => {
-    const snap = await getDocs(query(collection(db, "resources"), orderBy("createdAt", "desc")));
-    setResources(snap.docs.map((d) => ({ resourceId: d.id, ...d.data() }) as Resource));
+    try {
+      const snap = await getDocs(query(collection(db, "resources"), orderBy("createdAt", "desc")));
+      setResources(snap.docs.map((d) => ({ resourceId: d.id, ...d.data() }) as Resource));
+      setTabErrors((prev) => ({ ...prev, resources: undefined }));
+    } catch (err) {
+      setTabErrors((prev) => ({
+        ...prev,
+        resources: err instanceof Error ? err.message : "Failed to load resources",
+      }));
+    }
   };
 
   const refreshGuidance = async () => {
-    const snap = await getDocs(collection(db, "guidance"));
-    const arr = snap.docs.map((d) => ({ docId: d.id, ...d.data() }) as GuidanceDoc);
-    arr.sort((a, b) => {
-      if (a.audience !== b.audience) return a.audience < b.audience ? -1 : 1;
-      return (a.order ?? 0) - (b.order ?? 0);
-    });
-    setGuidanceDocs(arr);
+    try {
+      const snap = await getDocs(collection(db, "guidance"));
+      const arr = snap.docs.map((d) => ({ docId: d.id, ...d.data() }) as GuidanceDoc);
+      arr.sort((a, b) => {
+        if (a.audience !== b.audience) return a.audience < b.audience ? -1 : 1;
+        return (a.order ?? 0) - (b.order ?? 0);
+      });
+      setGuidanceDocs(arr);
+      setTabErrors((prev) => ({ ...prev, guidance: undefined }));
+    } catch (err) {
+      setTabErrors((prev) => ({
+        ...prev,
+        guidance: err instanceof Error ? err.message : "Failed to load guidance",
+      }));
+    }
   };
 
   useEffect(() => {
-    const fetchAll = async () => {
-      const [usersSnap, topicsSnap, sessionsSnap] = await Promise.all([
-        getDocs(collection(db, "users")),
-        getDocs(collection(db, "topics")),
-        getDocs(query(collection(db, "sessions"), orderBy("startedAt", "desc"))),
-      ]);
-      setUsers(usersSnap.docs.map((d) => d.data() as UserProfile));
-      setTopics(topicsSnap.docs.map((d) => ({ topicId: d.id, ...d.data() }) as Topic));
-      setSessions(sessionsSnap.docs.map((d) => ({ sessionId: d.id, ...d.data() }) as Session));
-      refreshResources();
-      refreshGuidance();
+    // Each collection fetched independently so one denial doesn't cascade.
+    const fetchUsers = async () => {
+      try {
+        const snap = await getDocs(collection(db, "users"));
+        setUsers(snap.docs.map((d) => d.data() as UserProfile));
+      } catch (err) {
+        setTabErrors((prev) => ({
+          ...prev,
+          users: err instanceof Error ? err.message : "Failed to load users",
+        }));
+      }
     };
-    fetchAll();
+    const fetchTopics = async () => {
+      try {
+        const snap = await getDocs(collection(db, "topics"));
+        setTopics(snap.docs.map((d) => ({ topicId: d.id, ...d.data() }) as Topic));
+      } catch (err) {
+        setTabErrors((prev) => ({
+          ...prev,
+          topics: err instanceof Error ? err.message : "Failed to load topics",
+        }));
+      }
+    };
+    const fetchSessions = async () => {
+      try {
+        const snap = await getDocs(query(collection(db, "sessions"), orderBy("startedAt", "desc")));
+        setSessions(snap.docs.map((d) => ({ sessionId: d.id, ...d.data() }) as Session));
+      } catch (err) {
+        setTabErrors((prev) => ({
+          ...prev,
+          sessions: err instanceof Error ? err.message : "Failed to load sessions",
+        }));
+      }
+    };
+    fetchUsers();
+    fetchTopics();
+    fetchSessions();
+    refreshResources();
+    refreshGuidance();
   }, []);
 
   const handleDeleteResource = async (r: Resource) => {
@@ -194,6 +244,11 @@ function AdminDashboardContent() {
       {/* Users Tab */}
       {tab === "users" && (
         <div>
+          {tabErrors.users && (
+            <div className="mb-3 rounded-lg bg-red-50 dark:bg-red-900/20 px-3 py-2 text-xs font-medium text-red-700 dark:text-red-300">
+              Couldn&apos;t load users: {tabErrors.users}
+            </div>
+          )}
           <input
             type="text"
             placeholder="Search users..."
@@ -237,6 +292,11 @@ function AdminDashboardContent() {
       {/* Topics Tab */}
       {tab === "topics" && (
         <div>
+          {tabErrors.topics && (
+            <div className="mb-3 rounded-lg bg-red-50 dark:bg-red-900/20 px-3 py-2 text-xs font-medium text-red-700 dark:text-red-300">
+              Couldn&apos;t load topics: {tabErrors.topics}
+            </div>
+          )}
           <button
             onClick={() => setShowTopicForm(!showTopicForm)}
             className="mb-4 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-teal-700"
@@ -327,7 +387,13 @@ function AdminDashboardContent() {
 
       {/* Sessions Tab */}
       {tab === "sessions" && (
-        <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <div>
+          {tabErrors.sessions && (
+            <div className="mb-3 rounded-lg bg-red-50 dark:bg-red-900/20 px-3 py-2 text-xs font-medium text-red-700 dark:text-red-300">
+              Couldn&apos;t load sessions: {tabErrors.sessions}
+            </div>
+          )}
+          <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 dark:bg-slate-950">
               <tr>
@@ -356,12 +422,18 @@ function AdminDashboardContent() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
       {/* Resources Tab */}
       {tab === "resources" && (
         <div className="space-y-3">
+          {tabErrors.resources && (
+            <div className="rounded-lg bg-red-50 dark:bg-red-900/20 px-3 py-2 text-xs font-medium text-red-700 dark:text-red-300">
+              Couldn&apos;t load resources: {tabErrors.resources}
+            </div>
+          )}
           <p className="text-sm text-slate-500 dark:text-slate-400">
             All files uploaded by speakers and admins. As admin, you can delete anything here.
             Upload new files from the{" "}
@@ -425,6 +497,11 @@ function AdminDashboardContent() {
       {/* Guidance Tab */}
       {tab === "guidance" && (
         <div className="space-y-4">
+          {tabErrors.guidance && (
+            <div className="rounded-lg bg-red-50 dark:bg-red-900/20 px-3 py-2 text-xs font-medium text-red-700 dark:text-red-300">
+              Couldn&apos;t load guidance: {tabErrors.guidance}
+            </div>
+          )}
           <p className="text-sm text-slate-500 dark:text-slate-400">
             Edit the rules, FAQs, and advice shown to speakers and learners. Use blank lines
             to separate paragraphs, &ldquo;## &rdquo; for a subheading, and &ldquo;- &rdquo;
