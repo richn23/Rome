@@ -221,6 +221,8 @@ export interface Resource {
   fileSizeBytes: number;
   contentType: string;
   tags?: string[];
+  /** Admin can hide a resource — kept on file but excluded from the speaker library. */
+  hidden?: boolean;
   createdAt: Timestamp;
 }
 

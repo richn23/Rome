@@ -54,11 +54,13 @@ function ResourcesContent() {
     return unsub;
   }, []);
 
-  /* Group by uploader role so admin-uploaded show on top */
+  /* Group by uploader role so admin-uploaded show on top.
+     Admin-hidden resources are filtered out of the speaker library. */
   const { adminUploads, speakerUploads } = useMemo(() => {
+    const visible = resources.filter((r) => !r.hidden);
     return {
-      adminUploads: resources.filter((r) => r.uploaderRole === "admin"),
-      speakerUploads: resources.filter((r) => r.uploaderRole === "speaker"),
+      adminUploads: visible.filter((r) => r.uploaderRole === "admin"),
+      speakerUploads: visible.filter((r) => r.uploaderRole === "speaker"),
     };
   }, [resources]);
 

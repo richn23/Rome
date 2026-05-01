@@ -247,7 +247,9 @@ service cloud.firestore {
       allow create: if isSignedIn()
                     && request.auth.uid == request.resource.data.uploaderUid
                     && (userRole() == "speaker" || userRole() == "admin");
-      allow update: if false;
+      // Admin can edit a narrow set of metadata fields on existing resources.
+      allow update: if isAdmin()
+                    && changedKeys().hasOnly(["title", "description", "hidden"]);
       allow delete: if isSignedIn() && (
         request.auth.uid == resource.data.uploaderUid ||
         isAdmin()

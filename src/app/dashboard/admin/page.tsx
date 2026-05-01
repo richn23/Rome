@@ -64,6 +64,18 @@ function AdminDashboardContent() {
   const [userActivity, setUserActivity] = useState<UserActivity | null>(null);
   const [activityLoading, setActivityLoading] = useState(false);
   const [savingUserAction, setSavingUserAction] = useState(false);
+  /* Resources tab state */
+  const [resourceFilter, setResourceFilter] = useState<"all" | "visible" | "hidden">("all");
+  const [resourceUploader, setResourceUploader] = useState<string>("all");
+  const [showResourceUpload, setShowResourceUpload] = useState(false);
+  const [resourceFile, setResourceFile] = useState<File | null>(null);
+  const [resourceTitle, setResourceTitle] = useState("");
+  const [resourceDescription, setResourceDescription] = useState("");
+  const [uploadingResource, setUploadingResource] = useState(false);
+  const [editingResourceId, setEditingResourceId] = useState<string | null>(null);
+  const [editResourceTitle, setEditResourceTitle] = useState("");
+  const [editResourceDescription, setEditResourceDescription] = useState("");
+  const [savingResource, setSavingResource] = useState(false);
   /* Policies tab state */
   const [showNewPolicyForm, setShowNewPolicyForm] = useState(false);
   const [newPolicySlug, setNewPolicySlug] = useState("");
@@ -83,6 +95,13 @@ function AdminDashboardContent() {
   const [editSummary, setEditSummary] = useState("");
   const [editBody, setEditBody] = useState("");
   const [savingGuidance, setSavingGuidance] = useState(false);
+  /* New guidance article form */
+  const [showNewGuidance, setShowNewGuidance] = useState(false);
+  const [newGuidanceAudience, setNewGuidanceAudience] = useState<"speaker" | "learner">("speaker");
+  const [newGuidanceSlug, setNewGuidanceSlug] = useState("");
+  const [newGuidanceTitle, setNewGuidanceTitle] = useState("");
+  const [newGuidanceSummary, setNewGuidanceSummary] = useState("");
+  const [newGuidanceBody, setNewGuidanceBody] = useState("");
   const { userProfile } = useAuth();
 
   // Topic form state
@@ -179,6 +198,94 @@ function AdminDashboardContent() {
     refreshPolicies();
   }, []);
 
+  const handleUploadResource = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resourceFile || !userProfile) return;
+    if (!resourceTitle.trim()) {
+      toast.error("Give the resource a title");
+      return;
+    }
+    if (resourceFile.size > 20 * 1024 * 1024) {
+      toast.error("File is too big — max 20 MB");
+      return;
+    }
+    setUploadingResource(true);
+    try {
+      const safeName = resourceFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const storagePath = `resources/${userProfile.uid}/${Date.now()}_${safeName}`;
+      const storageRef = ref(storage, storagePath);
+      await uploadBytes(storageRef, resourceFile);
+      const fileURL = await getDownloadURL(storageRef);
+      await addDoc(collection(db, "resources"), {
+        title: resourceTitle.trim(),
+        description: resourceDescription.trim() || null,
+        uploaderUid: userProfile.uid,
+        uploaderName: userProfile.displayName ?? "Admin",
+        uploaderRole: "admin",
+        fileURL,
+        storagePath,
+        fileName: resourceFile.name,
+        fileSizeBytes: resourceFile.size,
+        contentType: resourceFile.type || "application/octet-stream",
+        tags: [],
+        hidden: false,
+        createdAt: serverTimestamp(),
+      });
+      toast.success("Uploaded");
+      setShowResourceUpload(false);
+      setResourceFile(null);
+      setResourceTitle("");
+      setResourceDescription("");
+      refreshResources();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploadingResource(false);
+    }
+  };
+
+  const startEditResource = (r: Resource) => {
+    setEditingResourceId(r.resourceId);
+    setEditResourceTitle(r.title);
+    setEditResourceDescription(r.description ?? "");
+  };
+
+  const cancelEditResource = () => {
+    setEditingResourceId(null);
+    setEditResourceTitle("");
+    setEditResourceDescription("");
+  };
+
+  const saveEditResource = async (resourceId: string) => {
+    setSavingResource(true);
+    try {
+      await updateDoc(doc(db, "resources", resourceId), {
+        title: editResourceTitle.trim(),
+        description: editResourceDescription.trim() || null,
+      });
+      toast.success("Saved");
+      cancelEditResource();
+      refreshResources();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save");
+    } finally {
+      setSavingResource(false);
+    }
+  };
+
+  const toggleResourceHidden = async (r: Resource) => {
+    setSavingResource(true);
+    try {
+      await updateDoc(doc(db, "resources", r.resourceId), { hidden: !r.hidden });
+      toast.success(r.hidden ? "Resource unhidden" : "Resource hidden");
+      refreshResources();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update");
+    } finally {
+      setSavingResource(false);
+    }
+  };
+
   const handleDeleteResource = async (r: Resource) => {
     if (!confirm(`Delete "${r.title}"?`)) return;
     try {
@@ -205,6 +312,83 @@ function AdminDashboardContent() {
     setEditTitle("");
     setEditSummary("");
     setEditBody("");
+  };
+
+  const submitNewGuidance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userProfile) return;
+    const slug = newGuidanceSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-");
+    if (!slug) {
+      toast.error("Enter a slug");
+      return;
+    }
+    if (!newGuidanceTitle.trim()) {
+      toast.error("Enter a title");
+      return;
+    }
+    // Place the new article at the bottom of its audience.
+    const sameAudience = guidanceDocs.filter((g) => g.audience === newGuidanceAudience);
+    const nextOrder = sameAudience.reduce((m, g) => Math.max(m, g.order ?? 0), 0) + 10;
+    setSavingGuidance(true);
+    try {
+      await addDoc(collection(db, "guidance"), {
+        audience: newGuidanceAudience,
+        slug,
+        title: newGuidanceTitle.trim(),
+        summary: newGuidanceSummary.trim(),
+        body: newGuidanceBody,
+        order: nextOrder,
+        updatedAt: serverTimestamp(),
+        updatedBy: userProfile.uid,
+      });
+      toast.success("Article created");
+      setShowNewGuidance(false);
+      setNewGuidanceSlug("");
+      setNewGuidanceTitle("");
+      setNewGuidanceSummary("");
+      setNewGuidanceBody("");
+      refreshGuidance();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not create");
+    } finally {
+      setSavingGuidance(false);
+    }
+  };
+
+  const moveGuidance = async (g: GuidanceDoc, direction: "up" | "down") => {
+    const peers = guidanceDocs
+      .filter((x) => x.audience === g.audience)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    const idx = peers.findIndex((x) => x.docId === g.docId);
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= peers.length) return;
+    const other = peers[swapIdx];
+    setSavingGuidance(true);
+    try {
+      const batch = writeBatch(db);
+      batch.update(doc(db, "guidance", g.docId), { order: other.order ?? 0 });
+      batch.update(doc(db, "guidance", other.docId), { order: g.order ?? 0 });
+      await batch.commit();
+      refreshGuidance();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not reorder");
+    } finally {
+      setSavingGuidance(false);
+    }
+  };
+
+  const deleteGuidance = async (g: GuidanceDoc) => {
+    if (!confirm(`Delete "${g.title}"? This cannot be undone.`)) return;
+    setSavingGuidance(true);
+    try {
+      await deleteDoc(doc(db, "guidance", g.docId));
+      toast.success("Deleted");
+      refreshGuidance();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not delete");
+    } finally {
+      setSavingGuidance(false);
+    }
   };
 
   const saveGuidance = async () => {
@@ -338,6 +522,24 @@ function AdminDashboardContent() {
     if (!ts) return "—";
     return ts.toDate().toLocaleString();
   };
+
+  /* Resources — filter + uploader list */
+  const filteredResources = useMemo(() => {
+    return resources.filter((r) => {
+      if (resourceFilter === "visible" && r.hidden) return false;
+      if (resourceFilter === "hidden" && !r.hidden) return false;
+      if (resourceUploader !== "all" && r.uploaderUid !== resourceUploader) return false;
+      return true;
+    });
+  }, [resources, resourceFilter, resourceUploader]);
+
+  const resourceUploaders = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const r of resources) {
+      if (!map.has(r.uploaderUid)) map.set(r.uploaderUid, r.uploaderName);
+    }
+    return Array.from(map.entries());
+  }, [resources]);
 
   /* Sessions tab — tick once a minute while live view is open so durations move */
   useEffect(() => {
@@ -1191,61 +1393,196 @@ function AdminDashboardContent() {
               Couldn&apos;t load resources: {tabErrors.resources}
             </div>
           )}
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            All files uploaded by speakers and admins. As admin, you can delete anything here.
-            Upload new files from the{" "}
-            <a href="/dashboard/speaker/resources" className="font-medium text-teal-700 dark:text-teal-300 hover:underline">
-              Resources page
-            </a>
-            .
-          </p>
-          {resources.length === 0 ? (
+
+          {/* Upload */}
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              All files uploaded by speakers and admins. Hidden resources stay on file but are
+              excluded from the speaker library.
+            </p>
+            <button
+              onClick={() => setShowResourceUpload((v) => !v)}
+              className="shrink-0 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
+            >
+              {showResourceUpload ? "Cancel" : "+ Upload"}
+            </button>
+          </div>
+
+          {showResourceUpload && (
+            <form
+              onSubmit={handleUploadResource}
+              className="space-y-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5"
+            >
+              <input
+                type="text"
+                placeholder="Title"
+                value={resourceTitle}
+                onChange={(e) => setResourceTitle(e.target.value)}
+                className="block w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
+              />
+              <textarea
+                placeholder="Description (optional)"
+                value={resourceDescription}
+                onChange={(e) => setResourceDescription(e.target.value)}
+                rows={2}
+                className="block w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
+              />
+              <input
+                type="file"
+                onChange={(e) => setResourceFile(e.target.files?.[0] ?? null)}
+                className="block w-full text-sm text-slate-700 dark:text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 dark:file:bg-slate-800 file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700 dark:file:text-slate-200"
+              />
+              <button
+                type="submit"
+                disabled={uploadingResource}
+                className="rounded-lg bg-teal-600 px-5 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
+              >
+                {uploadingResource ? "Uploading..." : "Upload"}
+              </button>
+            </form>
+          )}
+
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-2">
+            {(["all", "visible", "hidden"] as const).map((k) => (
+              <button
+                key={k}
+                onClick={() => setResourceFilter(k)}
+                className={`rounded-full px-3 py-1 text-xs font-medium capitalize transition ${
+                  resourceFilter === k
+                    ? "bg-teal-600 text-white"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                }`}
+              >
+                {k}
+              </button>
+            ))}
+            <select
+              value={resourceUploader}
+              onChange={(e) => setResourceUploader(e.target.value)}
+              className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1 text-xs text-slate-700 dark:text-slate-200 focus:border-teal-500 focus:outline-none"
+            >
+              <option value="all">All uploaders</option>
+              {resourceUploaders.map(([uid, name]) => (
+                <option key={uid} value={uid}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {filteredResources.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 py-10 text-center text-slate-400 dark:text-slate-500">
-              No resources uploaded yet
+              {resources.length === 0 ? "No resources uploaded yet" : "No resources match"}
             </div>
           ) : (
             <div className="space-y-2">
-              {resources.map((r) => (
-                <div
-                  key={r.resourceId}
-                  className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium text-slate-900 dark:text-slate-100">{r.title}</p>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        r.uploaderRole === "admin"
-                          ? "bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-200"
-                          : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                      }`}>
-                        {r.uploaderRole}
-                      </span>
-                    </div>
-                    {r.description && (
-                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{r.description}</p>
+              {filteredResources.map((r) => {
+                const isEditing = editingResourceId === r.resourceId;
+                return (
+                  <div
+                    key={r.resourceId}
+                    className={`rounded-xl border p-4 ${
+                      r.hidden
+                        ? "border-amber-200 dark:border-amber-900/40 bg-amber-50/30 dark:bg-amber-900/10"
+                        : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                    }`}
+                  >
+                    {isEditing ? (
+                      <div className="space-y-3">
+                        <input
+                          type="text"
+                          value={editResourceTitle}
+                          onChange={(e) => setEditResourceTitle(e.target.value)}
+                          placeholder="Title"
+                          className="block w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
+                        />
+                        <textarea
+                          value={editResourceDescription}
+                          onChange={(e) => setEditResourceDescription(e.target.value)}
+                          placeholder="Description"
+                          rows={2}
+                          className="block w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => saveEditResource(r.resourceId)}
+                            disabled={savingResource}
+                            className="rounded-lg bg-teal-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
+                          >
+                            {savingResource ? "Saving..." : "Save"}
+                          </button>
+                          <button
+                            onClick={cancelEditResource}
+                            className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-medium text-slate-900 dark:text-slate-100">{r.title}</p>
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                                r.uploaderRole === "admin"
+                                  ? "bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-200"
+                                  : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                              }`}
+                            >
+                              {r.uploaderRole}
+                            </span>
+                            {r.hidden && (
+                              <span className="rounded-full bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-700 dark:text-amber-300">
+                                Hidden
+                              </span>
+                            )}
+                          </div>
+                          {r.description && (
+                            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{r.description}</p>
+                          )}
+                          <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                            {r.fileName} · by {r.uploaderName}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end gap-1.5">
+                          <a
+                            href={r.fileURL}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700"
+                          >
+                            Download
+                          </a>
+                          <div className="flex gap-2 text-xs">
+                            <button
+                              onClick={() => startEditResource(r)}
+                              className="font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => toggleResourceHidden(r)}
+                              disabled={savingResource}
+                              className="font-medium text-amber-600 hover:text-amber-700 disabled:opacity-50"
+                            >
+                              {r.hidden ? "Unhide" : "Hide"}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteResource(r)}
+                              className="font-medium text-red-600 hover:text-red-700"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     )}
-                    <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
-                      {r.fileName} · by {r.uploaderName}
-                    </p>
                   </div>
-                  <div className="flex shrink-0 flex-col items-end gap-2">
-                    <a
-                      href={r.fileURL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700"
-                    >
-                      Download
-                    </a>
-                    <button
-                      onClick={() => handleDeleteResource(r)}
-                      className="text-xs font-medium text-red-600 hover:text-red-700"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -1259,11 +1596,72 @@ function AdminDashboardContent() {
               Couldn&apos;t load guidance: {tabErrors.guidance}
             </div>
           )}
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Edit the rules, FAQs, and advice shown to speakers and learners. Use blank lines
-            to separate paragraphs, &ldquo;## &rdquo; for a subheading, and &ldquo;- &rdquo;
-            for a bullet.
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Edit the rules, FAQs, and advice shown to speakers and learners. Use blank lines
+              to separate paragraphs, &ldquo;## &rdquo; for a subheading, and &ldquo;- &rdquo;
+              for a bullet.
+            </p>
+            <button
+              onClick={() => setShowNewGuidance((v) => !v)}
+              className="shrink-0 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
+            >
+              {showNewGuidance ? "Cancel" : "+ New article"}
+            </button>
+          </div>
+
+          {showNewGuidance && (
+            <form
+              onSubmit={submitNewGuidance}
+              className="space-y-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5"
+            >
+              <div className="grid grid-cols-2 gap-3">
+                <select
+                  value={newGuidanceAudience}
+                  onChange={(e) => setNewGuidanceAudience(e.target.value as "speaker" | "learner")}
+                  className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
+                >
+                  <option value="speaker">Speaker</option>
+                  <option value="learner">Learner</option>
+                </select>
+                <input
+                  type="text"
+                  placeholder="slug-like-this"
+                  value={newGuidanceSlug}
+                  onChange={(e) => setNewGuidanceSlug(e.target.value)}
+                  className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
+                />
+              </div>
+              <input
+                type="text"
+                placeholder="Title"
+                value={newGuidanceTitle}
+                onChange={(e) => setNewGuidanceTitle(e.target.value)}
+                className="block w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
+              />
+              <input
+                type="text"
+                placeholder="Short summary"
+                value={newGuidanceSummary}
+                onChange={(e) => setNewGuidanceSummary(e.target.value)}
+                className="block w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
+              />
+              <textarea
+                value={newGuidanceBody}
+                onChange={(e) => setNewGuidanceBody(e.target.value)}
+                placeholder="Body (markdown-ish)"
+                rows={8}
+                className="block w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 font-mono text-xs text-slate-900 dark:text-slate-100 focus:border-teal-500 focus:outline-none"
+              />
+              <button
+                type="submit"
+                disabled={savingGuidance}
+                className="rounded-lg bg-teal-600 px-5 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
+              >
+                {savingGuidance ? "Creating..." : "Create"}
+              </button>
+            </form>
+          )}
 
           {guidanceDocs.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 py-10 text-center text-slate-400 dark:text-slate-500">
@@ -1343,12 +1741,47 @@ function AdminDashboardContent() {
                             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{g.summary}</p>
                           )}
                         </div>
-                        <button
-                          onClick={() => startEditGuidance(g)}
-                          className="shrink-0 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-                        >
-                          Edit
-                        </button>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            onClick={() => moveGuidance(g, "up")}
+                            disabled={savingGuidance}
+                            className="rounded p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 disabled:opacity-30"
+                            aria-label="Move up"
+                            title="Move up"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            onClick={() => moveGuidance(g, "down")}
+                            disabled={savingGuidance}
+                            className="rounded p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 disabled:opacity-30"
+                            aria-label="Move down"
+                            title="Move down"
+                          >
+                            ▼
+                          </button>
+                          <a
+                            href={`/guidance/${g.audience}/${g.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                          >
+                            Preview ↗
+                          </a>
+                          <button
+                            onClick={() => startEditGuidance(g)}
+                            className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => deleteGuidance(g)}
+                            disabled={savingGuidance}
+                            className="rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
